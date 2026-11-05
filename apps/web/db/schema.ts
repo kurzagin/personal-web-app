@@ -8,6 +8,14 @@ export const adminUsers = pgTable('admin_users', {
   created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
+// 1a. Admin Sessions Table (Revocable operator session tokens)
+export const adminSessions = pgTable('admin_sessions', {
+  token: text('token').primaryKey(),
+  user_id: uuid('user_id').notNull().references(() => adminUsers.id, { onDelete: 'cascade' }),
+  created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
+  expires_at: text('expires_at').notNull(),
+});
+
 // 1b. Global retro-style page hit counter
 export const siteStats = pgTable('site_stats', {
   id: integer('id').primaryKey().default(1),
@@ -54,6 +62,7 @@ export const posts = pgTable(
   'posts',
   {
     id: uuid('id').defaultRandom().primaryKey(),
+    user_id: uuid('user_id').references(() => adminUsers.id, { onDelete: 'set null' }),
     content: text('content').notNull(),
     author_name: varchar('author_name', { length: 50 }).default('Kur Zagin').notNull(),
     author_handle: varchar('author_handle', { length: 50 }).default('@kurzagin').notNull(),
@@ -66,6 +75,7 @@ export const posts = pgTable(
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [
+    index('idx_posts_user_id').on(table.user_id),
     index('idx_posts_created_at').on(table.created_at.desc()),
     index('idx_posts_has_media').on(table.has_media, table.created_at.desc()),
     index('idx_posts_category').on(table.category, table.created_at.desc()),

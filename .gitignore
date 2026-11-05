@@ -92,3 +92,7 @@ assets/music/*
 !assets/music/README.md
 !assets/music/converted/
 !assets/music/converted/.gitkeep
+
+# Cloudflare Wrangler
+.wrangler/
+

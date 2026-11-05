@@ -31,7 +31,7 @@ export default function LoginClient() {
       submitBtn.disabled = true;
       submitBtn.style.opacity = '0.6';
       statusEl.style.color = 'var(--accent)';
-      statusEl.textContent = '// status: handshaking with neon auth...';
+      statusEl.textContent = '// status: handshaking with cloudflare d1...';
 
       try {
         const res = await fetch('/api/auth/login', {
@@ -44,7 +44,7 @@ export default function LoginClient() {
 
         if (res.ok && data.success) {
           statusEl.style.color = '#7bc67a';
-          statusEl.textContent = '// status: neon handshake verified. redirecting...';
+          statusEl.textContent = '// status: credentials verified. redirecting...';
           redirectTimer = setTimeout(() => {
             window.location.href = '/';
           }, 500);

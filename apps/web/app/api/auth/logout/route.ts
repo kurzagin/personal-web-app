@@ -1,50 +1,28 @@
-import type { NextRequest } from 'next/server';
+import { type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
-import { clearSessionCookie, getNeonAuthConfig, buildLogoutCookieHeaders } from '@/lib/auth';
+import {
+  SESSION_COOKIE_NAME,
+  revokeSessionToken,
+  buildLogoutCookieHeader,
+} from '@/lib/auth';
 
-async function performLogout(request: Request, cookieStore: any): Promise<string[]> {
-  clearSessionCookie(cookieStore);
+async function performLogout(request: NextRequest): Promise<Headers> {
+  const cookieStore = await cookies();
+  const sessionCookie = cookieStore.get(SESSION_COOKIE_NAME);
+  const token = sessionCookie?.value;
 
-  const setCookies: string[] = [];
-
-  const { isConfigured, baseUrl } = getNeonAuthConfig();
-  if (isConfigured && baseUrl) {
-    try {
-      const cookieHeader = request.headers.get('cookie') || '';
-      const origin = request.headers.get('origin') || new URL(request.url).origin;
-      const res = await fetch(`${baseUrl.replace(/\/$/, '')}/sign-out`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          cookie: cookieHeader,
-          origin,
-        },
-      });
-
-      if (typeof (res.headers as any).getSetCookie === 'function') {
-        setCookies.push(...(res.headers as any).getSetCookie());
-      } else {
-        const rawCookie = res.headers.get('set-cookie');
-        if (rawCookie) setCookies.push(rawCookie);
-      }
-    } catch (err) {
-      console.warn('[auth] Error contacting Neon Auth upstream sign-out:', err);
-    }
+  if (token) {
+    await revokeSessionToken(token);
   }
 
-  // Always emit explicit browser cookie deletion headers to wipe out active session
-  const manualDeletions = buildLogoutCookieHeaders(request);
-  setCookies.push(...manualDeletions);
-
-  return setCookies;
+  const headers = new Headers();
+  headers.append('Set-Cookie', buildLogoutCookieHeader());
+  return headers;
 }
 
 export async function POST(request: NextRequest) {
-  const setCookies = await performLogout(request, await cookies());
-  const headers = new Headers({ 'Content-Type': 'application/json' });
-  for (const cookie of setCookies) {
-    headers.append('Set-Cookie', cookie);
-  }
+  const headers = await performLogout(request);
+  headers.set('Content-Type', 'application/json');
   return new Response(JSON.stringify({ success: true }), {
     status: 200,
     headers,
@@ -52,26 +30,8 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  const setCookies = await performLogout(request, await cookies());
-
-  const referer = request.headers.get('referer');
-  let destination = '/';
-  if (referer) {
-    try {
-      const refUrl = new URL(referer);
-      const reqUrl = new URL(request.url);
-      if (refUrl.origin === reqUrl.origin) {
-        destination = refUrl.pathname + refUrl.search;
-      }
-    } catch {}
-  }
-
-  const headers = new Headers();
-  headers.set('Location', destination);
-  for (const cookie of setCookies) {
-    headers.append('Set-Cookie', cookie);
-  }
-
+  const headers = await performLogout(request);
+  headers.set('Location', '/');
   return new Response(null, {
     status: 302,
     headers,
