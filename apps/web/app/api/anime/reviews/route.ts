@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
   }
 
   const session = await getSession(cookies, request);
-  const authorName = session?.name || 'Kur Zagin';
+  const authorName = 'Kur Zagin';
   const authorHandle = `@${session?.username || 'kurzagin'}`;
 
   try {
