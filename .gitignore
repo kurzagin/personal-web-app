@@ -1,11 +1,46 @@
 # Dependencies
 node_modules/
 .pnpm-store/
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
-# Build and production outputs
+# Next.js & Web builds
+apps/web/.next/
+apps/web/out/
+.next/
+out/
+
+# Expo & Mobile
+.expo/
+apps/mobile/.expo/
+apps/mobile/dist/
+apps/mobile/web-build/
+apps/mobile/expo-env.d.ts
+expo-env.d.ts
+next-env.d.ts
+
+# Native folders & Android/iOS keys
+/ios/
+/android/
+apps/mobile/ios/
+apps/mobile/android/
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.key
+*.mobileprovision
+
+# Metro & Bundler
+.metro-health-check*
+
+# General build & production outputs
 dist/
 build/
-out/
 .astro/
 
 # Environment files
@@ -25,7 +60,7 @@ pnpm-debug.log*
 lerna-debug.log*
 *.log
 
-# Framework and deploy caches
+# Framework & deploy caches
 .vercel/
 .netlify/
 .turbo/
@@ -34,6 +69,7 @@ lerna-debug.log*
 # OS metadata
 .DS_Store
 Thumbs.db
+*.pem
 
 # IDE and editors
 .idea/
@@ -47,6 +83,9 @@ Thumbs.db
 *.njsproj
 *.sln
 *.sw?
+
+# TypeScript build info
+*.tsbuildinfo
 
 # Local media assets
 assets/music/*
