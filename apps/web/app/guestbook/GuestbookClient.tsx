@@ -234,6 +234,39 @@ export default function GuestbookClient({
                   <time>{formatEntryDate(entry.created_at)}</time>
                 </div>
                 <p>{entry.content}</p>
+
+                {entry.reply_content && (
+                  <div
+                    style={{
+                      marginTop: '12px',
+                      padding: '10px 14px',
+                      background: 'var(--bg-0)',
+                      borderLeft: '2px solid var(--accent)',
+                      borderRadius: '2px',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        marginBottom: '4px',
+                        fontFamily: 'var(--mono)',
+                        fontSize: '0.68rem',
+                      }}
+                    >
+                      <strong style={{ color: 'var(--accent)' }}>↳ kurzagin [operator]</strong>
+                      {entry.replied_at && (
+                        <time style={{ color: 'var(--text-3)', fontSize: '0.65rem' }}>
+                          {formatEntryDate(entry.replied_at)}
+                        </time>
+                      )}
+                    </div>
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-1)', lineHeight: '1.5' }}>
+                      {entry.reply_content}
+                    </p>
+                  </div>
+                )}
               </article>
             ))
           )}

@@ -55,22 +55,35 @@ export default function MessagesClient({
 }) {
   const [activeTab, setActiveTab] = useState<'replies' | 'guestbook'>('replies');
   const [repliesFilter, setRepliesFilter] = useState<'pending' | 'all'>('pending');
+  const [guestbookFilter, setGuestbookFilter] = useState<'pending' | 'all'>('pending');
   const [allReplies, setAllReplies] = useState<CommentWithPost[]>(initialAllReplies);
-  const [guestbook] = useState<DbGuestbookEntry[]>(initialGuestbook);
+  const [guestbook, setGuestbook] = useState<DbGuestbookEntry[]>(initialGuestbook);
+
+  // Comment reply state
   const [replyingToCommentId, setReplyingToCommentId] = useState<string | null>(null);
-  const [replyContent, setReplyContent] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitSuccess, setSubmitSuccess] = useState<string | null>(null);
-  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [commentReplyContent, setCommentReplyContent] = useState('');
+  const [isSubmittingComment, setIsSubmittingComment] = useState(false);
+  const [commentSuccess, setCommentSuccess] = useState<string | null>(null);
+  const [commentError, setCommentError] = useState<string | null>(null);
+
+  // Guestbook reply state
+  const [replyingToGuestbookId, setReplyingToGuestbookId] = useState<string | null>(null);
+  const [guestbookReplyContent, setGuestbookReplyContent] = useState('');
+  const [isSubmittingGuestbook, setIsSubmittingGuestbook] = useState(false);
+  const [guestbookSuccess, setGuestbookSuccess] = useState<string | null>(null);
+  const [guestbookError, setGuestbookError] = useState<string | null>(null);
 
   const pendingReplies = allReplies.filter((c) => !c.is_replied);
   const displayedReplies = repliesFilter === 'pending' ? pendingReplies : allReplies;
 
-  async function handleQuickReply(comment: CommentWithPost) {
-    if (!replyContent.trim()) return;
-    setIsSubmitting(true);
-    setSubmitError(null);
-    setSubmitSuccess(null);
+  const pendingGuestbook = guestbook.filter((g) => !g.reply_content);
+  const displayedGuestbook = guestbookFilter === 'pending' ? pendingGuestbook : guestbook;
+
+  async function handleCommentReply(comment: CommentWithPost) {
+    if (!commentReplyContent.trim()) return;
+    setIsSubmittingComment(true);
+    setCommentError(null);
+    setCommentSuccess(null);
 
     try {
       const res = await fetch('/api/comments', {
@@ -79,7 +92,7 @@ export default function MessagesClient({
         body: JSON.stringify({
           postId: comment.post_id,
           parentCommentId: comment.id,
-          content: replyContent.trim(),
+          content: commentReplyContent.trim(),
           authorName: operatorName || 'kurzagin',
         }),
       });
@@ -89,21 +102,62 @@ export default function MessagesClient({
         throw new Error(data.error || 'Failed to send reply');
       }
 
-      // Mark as replied locally
       setAllReplies((prev) =>
         prev.map((c) => (c.id === comment.id ? { ...c, is_replied: true } : c))
       );
 
-      setSubmitSuccess('Reply posted successfully!');
-      setReplyContent('');
+      setCommentSuccess('Reply posted successfully!');
+      setCommentReplyContent('');
       setTimeout(() => {
         setReplyingToCommentId(null);
-        setSubmitSuccess(null);
+        setCommentSuccess(null);
       }, 1500);
     } catch (err: any) {
-      setSubmitError(err.message || 'Failed to send reply');
+      setCommentError(err.message || 'Failed to send reply');
     } finally {
-      setIsSubmitting(false);
+      setIsSubmittingComment(false);
+    }
+  }
+
+  async function handleGuestbookReply(entry: DbGuestbookEntry) {
+    if (!guestbookReplyContent.trim()) return;
+    setIsSubmittingGuestbook(true);
+    setGuestbookError(null);
+    setGuestbookSuccess(null);
+
+    try {
+      const res = await fetch('/api/guestbook', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: entry.id,
+          replyContent: guestbookReplyContent.trim(),
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to save reply');
+      }
+
+      setGuestbook((prev) =>
+        prev.map((g) =>
+          g.id === entry.id
+            ? { ...g, reply_content: guestbookReplyContent.trim(), replied_at: new Date().toISOString() as any }
+            : g
+        )
+      );
+
+      setGuestbookSuccess('Reply saved to guestbook!');
+      setGuestbookReplyContent('');
+      setTimeout(() => {
+        setReplyingToGuestbookId(null);
+        setGuestbookSuccess(null);
+      }, 1500);
+    } catch (err: any) {
+      setGuestbookError(err.message || 'Failed to save reply');
+    } finally {
+      setIsSubmittingGuestbook(false);
     }
   }
 
@@ -141,11 +195,11 @@ export default function MessagesClient({
                 width: '6px',
                 height: '6px',
                 borderRadius: '50%',
-                background: pendingReplies.length > 0 ? 'var(--accent)' : 'var(--border-subtle)',
+                background: pendingReplies.length + pendingGuestbook.length > 0 ? 'var(--accent)' : 'var(--border-subtle)',
                 display: 'inline-block',
               }}
             />
-            <span>{pendingReplies.length} waiting</span>
+            <span>{pendingReplies.length + pendingGuestbook.length} waiting</span>
           </div>
         </div>
 
@@ -226,7 +280,7 @@ export default function MessagesClient({
                 borderRadius: '10px',
               }}
             >
-              {guestbook.length}
+              {pendingGuestbook.length}
             </span>
           </button>
         </div>
@@ -234,7 +288,6 @@ export default function MessagesClient({
         {/* Tab content: Replies */}
         {activeTab === 'replies' && (
           <div>
-            {/* Filter Toggle Sub-row (unanswered vs all) */}
             <div
               style={{
                 display: 'flex',
@@ -286,7 +339,6 @@ export default function MessagesClient({
               </div>
             </div>
 
-            {/* Replies List */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
               {displayedReplies.length === 0 ? (
                 <div className="bracket-card empty-state" style={{ padding: '36px 20px', textAlign: 'center' }}>
@@ -316,7 +368,6 @@ export default function MessagesClient({
                         position: 'relative',
                       }}
                     >
-                      {/* Header: Author + Timestamp + Replied Badge */}
                       <div
                         style={{
                           display: 'flex',
@@ -374,7 +425,6 @@ export default function MessagesClient({
                         </div>
                       </div>
 
-                      {/* Post context snippet */}
                       {comment.post_content && (
                         <div
                           style={{
@@ -395,7 +445,6 @@ export default function MessagesClient({
                         </div>
                       )}
 
-                      {/* Content */}
                       <div
                         style={{
                           fontFamily: 'var(--sans)',
@@ -410,7 +459,6 @@ export default function MessagesClient({
                         {comment.content}
                       </div>
 
-                      {/* Actions row */}
                       <div
                         style={{
                           display: 'flex',
@@ -426,9 +474,9 @@ export default function MessagesClient({
                           type="button"
                           onClick={() => {
                             setReplyingToCommentId(isReplying ? null : comment.id);
-                            setReplyContent('');
-                            setSubmitError(null);
-                            setSubmitSuccess(null);
+                            setCommentReplyContent('');
+                            setCommentError(null);
+                            setCommentSuccess(null);
                           }}
                           style={{
                             background: 'transparent',
@@ -463,7 +511,6 @@ export default function MessagesClient({
                         </Link>
                       </div>
 
-                      {/* Quick reply inline box */}
                       {isReplying && (
                         <div
                           style={{
@@ -474,8 +521,8 @@ export default function MessagesClient({
                         >
                           <textarea
                             rows={3}
-                            value={replyContent}
-                            onChange={(e) => setReplyContent(e.target.value)}
+                            value={commentReplyContent}
+                            onChange={(e) => setCommentReplyContent(e.target.value)}
                             placeholder={`Reply to ${comment.author_name} as @${operatorName}...`}
                             style={{
                               width: '100%',
@@ -492,12 +539,12 @@ export default function MessagesClient({
                             }}
                           />
 
-                          {submitError && (
+                          {commentError && (
                             <div style={{ color: 'var(--red)', fontSize: '0.72rem', marginTop: '4px' }}>
-                              {submitError}
+                              {commentError}
                             </div>
                           )}
-                          {submitSuccess && (
+                          {commentSuccess && (
                             <div
                               style={{
                                 color: 'var(--accent)',
@@ -508,24 +555,24 @@ export default function MessagesClient({
                                 gap: '4px',
                               }}
                             >
-                              <Check size={12} /> {submitSuccess}
+                              <Check size={12} /> {commentSuccess}
                             </div>
                           )}
 
                           <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
                             <button
                               type="button"
-                              disabled={isSubmitting || !replyContent.trim()}
-                              onClick={() => handleQuickReply(comment)}
+                              disabled={isSubmittingComment || !commentReplyContent.trim()}
+                              onClick={() => handleCommentReply(comment)}
                               className="post-btn"
                               style={{
                                 padding: '6px 14px',
                                 fontSize: '0.75rem',
-                                opacity: isSubmitting || !replyContent.trim() ? 0.5 : 1,
+                                opacity: isSubmittingComment || !commentReplyContent.trim() ? 0.5 : 1,
                               }}
                             >
                               <Send size={11} style={{ marginRight: '4px' }} />
-                              <span>{isSubmitting ? 'sending...' : 'send reply'}</span>
+                              <span>{isSubmittingComment ? 'sending...' : 'send reply'}</span>
                             </button>
                           </div>
                         </div>
@@ -540,86 +587,311 @@ export default function MessagesClient({
 
         {/* Tab content: Guestbook */}
         {activeTab === 'guestbook' && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            {guestbook.length === 0 ? (
-              <div className="bracket-card empty-state" style={{ padding: '36px 20px', textAlign: 'center' }}>
-                <div style={{ fontFamily: 'var(--mono)', fontSize: '0.85rem', color: 'var(--text-2)' }}>
-                  GUESTBOOK IS EMPTY
-                </div>
-                <p style={{ fontFamily: 'var(--sans)', fontSize: '0.75rem', color: 'var(--text-3)', margin: '6px 0 0 0' }}>
-                  No messages recorded from visitors in the ledger yet.
-                </p>
+          <div>
+            <div
+              style={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                marginBottom: '14px',
+                fontFamily: 'var(--mono)',
+                fontSize: '0.72rem',
+                padding: '0 2px',
+              }}
+            >
+              <div style={{ color: 'var(--text-3)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <Filter size={11} />
+                <span>filter:</span>
               </div>
-            ) : (
-              guestbook.map((entry) => (
-                <article
-                  key={entry.id}
-                  className="bracket-card"
+              <div style={{ display: 'flex', gap: '6px' }}>
+                <button
+                  type="button"
+                  onClick={() => setGuestbookFilter('pending')}
                   style={{
-                    padding: '16px',
-                    background: 'var(--bg-1)',
-                    border: '1px solid var(--border)',
+                    background: guestbookFilter === 'pending' ? 'var(--bg-2)' : 'transparent',
+                    border: `1px solid ${guestbookFilter === 'pending' ? 'var(--border)' : 'transparent'}`,
+                    color: guestbookFilter === 'pending' ? 'var(--text-0)' : 'var(--text-3)',
+                    fontFamily: 'inherit',
+                    fontSize: 'inherit',
+                    padding: '3px 8px',
+                    borderRadius: '2px',
+                    cursor: 'pointer',
                   }}
                 >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: '8px',
-                      fontFamily: 'var(--mono)',
-                      fontSize: '0.75rem',
-                    }}
-                  >
-                    <strong style={{ color: 'var(--accent)', fontWeight: 600 }}>
-                      {entry.author_name}
-                    </strong>
-                    <time style={{ color: 'var(--text-3)', fontSize: '0.68rem' }}>
-                      {formatTimestamp(entry.created_at)}
-                    </time>
-                  </div>
+                  unanswered ({pendingGuestbook.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setGuestbookFilter('all')}
+                  style={{
+                    background: guestbookFilter === 'all' ? 'var(--bg-2)' : 'transparent',
+                    border: `1px solid ${guestbookFilter === 'all' ? 'var(--border)' : 'transparent'}`,
+                    color: guestbookFilter === 'all' ? 'var(--text-0)' : 'var(--text-3)',
+                    fontFamily: 'inherit',
+                    fontSize: 'inherit',
+                    padding: '3px 8px',
+                    borderRadius: '2px',
+                    cursor: 'pointer',
+                  }}
+                >
+                  all ({guestbook.length})
+                </button>
+              </div>
+            </div>
 
-                  <div
-                    style={{
-                      fontFamily: 'var(--sans)',
-                      fontSize: '0.86rem',
-                      lineHeight: '1.5',
-                      color: 'var(--text-0)',
-                      whiteSpace: 'pre-wrap',
-                      wordBreak: 'break-word',
-                      marginBottom: '10px',
-                    }}
-                  >
-                    {entry.content}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+              {displayedGuestbook.length === 0 ? (
+                <div className="bracket-card empty-state" style={{ padding: '36px 20px', textAlign: 'center' }}>
+                  <div style={{ color: 'var(--accent)', marginBottom: '8px', display: 'flex', justifyContent: 'center' }}>
+                    <CheckCircle2 size={28} />
                   </div>
-
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'flex-end',
-                      borderTop: '1px solid var(--border-subtle)',
-                      paddingTop: '8px',
-                      fontFamily: 'var(--mono)',
-                      fontSize: '0.72rem',
-                    }}
-                  >
-                    <Link
-                      href="/guestbook"
+                  <div style={{ fontFamily: 'var(--mono)', fontSize: '0.85rem', color: 'var(--text-1)' }}>
+                    {guestbookFilter === 'pending' ? 'ALL ENTRIES ANSWERED' : 'GUESTBOOK IS EMPTY'}
+                  </div>
+                  <p style={{ fontFamily: 'var(--sans)', fontSize: '0.75rem', color: 'var(--text-3)', margin: '6px 0 0 0' }}>
+                    {guestbookFilter === 'pending'
+                      ? 'You have replied to all guestbook visitor signatures.'
+                      : 'No visitor entries recorded in the ledger yet.'}
+                  </p>
+                </div>
+              ) : (
+                displayedGuestbook.map((entry) => {
+                  const isReplying = replyingToGuestbookId === entry.id;
+                  const hasReplied = Boolean(entry.reply_content);
+                  return (
+                    <article
+                      key={entry.id}
+                      className="bracket-card"
                       style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        color: 'var(--text-3)',
-                        textDecoration: 'none',
+                        padding: '16px',
+                        background: 'var(--bg-1)',
+                        border: '1px solid var(--border)',
                       }}
                     >
-                      <span>open guestbook ledger</span>
-                      <ExternalLink size={11} />
-                    </Link>
-                  </div>
-                </article>
-              ))
-            )}
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          marginBottom: '8px',
+                        }}
+                      >
+                        <strong style={{ color: 'var(--accent)', fontFamily: 'var(--mono)', fontSize: '0.8rem', fontWeight: 600 }}>
+                          {entry.author_name}
+                        </strong>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          {hasReplied ? (
+                            <span
+                              style={{
+                                color: 'var(--accent)',
+                                fontSize: '0.65rem',
+                                fontFamily: 'var(--mono)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                                background: 'var(--accent-glow)',
+                                padding: '1px 6px',
+                                borderRadius: '2px',
+                              }}
+                            >
+                              <Check size={10} /> replied
+                            </span>
+                          ) : (
+                            <span
+                              style={{
+                                color: 'var(--text-3)',
+                                fontSize: '0.65rem',
+                                fontFamily: 'var(--mono)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '3px',
+                              }}
+                            >
+                              <Clock size={10} /> waiting
+                            </span>
+                          )}
+                          <time style={{ color: 'var(--text-3)', fontFamily: 'var(--mono)', fontSize: '0.68rem' }}>
+                            {formatTimestamp(entry.created_at)}
+                          </time>
+                        </div>
+                      </div>
+
+                      <div
+                        style={{
+                          fontFamily: 'var(--sans)',
+                          fontSize: '0.86rem',
+                          lineHeight: '1.5',
+                          color: 'var(--text-0)',
+                          whiteSpace: 'pre-wrap',
+                          wordBreak: 'break-word',
+                          marginBottom: '10px',
+                        }}
+                      >
+                        {entry.content}
+                      </div>
+
+                      {/* Display existing operator reply if present */}
+                      {entry.reply_content && (
+                        <div
+                          style={{
+                            marginTop: '10px',
+                            marginBottom: '10px',
+                            padding: '8px 12px',
+                            background: 'var(--bg-0)',
+                            borderLeft: '2px solid var(--accent)',
+                            borderRadius: '2px',
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: 'flex',
+                              justifyContent: 'space-between',
+                              alignItems: 'center',
+                              marginBottom: '4px',
+                              fontFamily: 'var(--mono)',
+                              fontSize: '0.68rem',
+                            }}
+                          >
+                            <span style={{ color: 'var(--accent)', fontWeight: 600 }}>
+                              ↳ @{operatorName} [operator reply]
+                            </span>
+                            {entry.replied_at && (
+                              <time style={{ color: 'var(--text-3)', fontSize: '0.65rem' }}>
+                                {formatTimestamp(entry.replied_at)}
+                              </time>
+                            )}
+                          </div>
+                          <p style={{ margin: 0, fontSize: '0.82rem', color: 'var(--text-1)', lineHeight: '1.5' }}>
+                            {entry.reply_content}
+                          </p>
+                        </div>
+                      )}
+
+                      {/* Actions row */}
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          alignItems: 'center',
+                          borderTop: '1px solid var(--border-subtle)',
+                          paddingTop: '8px',
+                          fontFamily: 'var(--mono)',
+                          fontSize: '0.72rem',
+                        }}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setReplyingToGuestbookId(isReplying ? null : entry.id);
+                            setGuestbookReplyContent(entry.reply_content || '');
+                            setGuestbookError(null);
+                            setGuestbookSuccess(null);
+                          }}
+                          style={{
+                            background: 'transparent',
+                            border: 'none',
+                            color: isReplying ? 'var(--accent)' : 'var(--text-2)',
+                            cursor: 'pointer',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            padding: '4px 0',
+                            fontFamily: 'inherit',
+                            fontSize: 'inherit',
+                          }}
+                        >
+                          <CornerDownRight size={12} />
+                          <span>{isReplying ? 'cancel' : hasReplied ? 'edit reply' : 'quick reply'}</span>
+                        </button>
+
+                        <Link
+                          href="/guestbook"
+                          target="_blank"
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '4px',
+                            color: 'var(--text-3)',
+                            textDecoration: 'none',
+                          }}
+                        >
+                          <span>open guestbook</span>
+                          <ExternalLink size={11} />
+                        </Link>
+                      </div>
+
+                      {/* Quick reply inline box for guestbook */}
+                      {isReplying && (
+                        <div
+                          style={{
+                            marginTop: '10px',
+                            paddingTop: '10px',
+                            borderTop: '1px dashed var(--border)',
+                          }}
+                        >
+                          <textarea
+                            rows={3}
+                            value={guestbookReplyContent}
+                            onChange={(e) => setGuestbookReplyContent(e.target.value)}
+                            placeholder={`Reply to ${entry.author_name} as @${operatorName}...`}
+                            style={{
+                              width: '100%',
+                              background: 'var(--bg-0)',
+                              border: '1px solid var(--border)',
+                              color: 'var(--text-0)',
+                              fontFamily: 'var(--mono)',
+                              fontSize: '0.8rem',
+                              padding: '8px',
+                              outline: 'none',
+                              borderRadius: '2px',
+                              resize: 'vertical',
+                              boxSizing: 'border-box',
+                            }}
+                          />
+
+                          {guestbookError && (
+                            <div style={{ color: 'var(--red)', fontSize: '0.72rem', marginTop: '4px' }}>
+                              {guestbookError}
+                            </div>
+                          )}
+                          {guestbookSuccess && (
+                            <div
+                              style={{
+                                color: 'var(--accent)',
+                                fontSize: '0.72rem',
+                                marginTop: '4px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '4px',
+                              }}
+                            >
+                              <Check size={12} /> {guestbookSuccess}
+                            </div>
+                          )}
+
+                          <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '8px' }}>
+                            <button
+                              type="button"
+                              disabled={isSubmittingGuestbook || !guestbookReplyContent.trim()}
+                              onClick={() => handleGuestbookReply(entry)}
+                              className="post-btn"
+                              style={{
+                                padding: '6px 14px',
+                                fontSize: '0.75rem',
+                                opacity: isSubmittingGuestbook || !guestbookReplyContent.trim() ? 0.5 : 1,
+                              }}
+                            >
+                              <Send size={11} style={{ marginRight: '4px' }} />
+                              <span>{isSubmittingGuestbook ? 'saving...' : 'save reply'}</span>
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </article>
+                  );
+                })
+              )}
+            </div>
           </div>
         )}
       </section>

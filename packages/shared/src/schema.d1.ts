@@ -118,6 +118,8 @@ export const guestbookEntries = sqliteTable(
     id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
     author_name: text('author_name').default('guest').notNull(),
     content: text('content').notNull(),
+    reply_content: text('reply_content'),
+    replied_at: text('replied_at'),
     created_at: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
   },
   (table) => [index('idx_guestbook_entries_created_at').on(table.created_at)]
