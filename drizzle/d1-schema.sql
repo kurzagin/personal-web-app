@@ -85,6 +85,8 @@ CREATE TABLE IF NOT EXISTS guestbook_entries (
   id TEXT PRIMARY KEY,
   author_name TEXT NOT NULL DEFAULT 'guest',
   content TEXT NOT NULL,
+  reply_content TEXT,
+  replied_at TEXT,
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_guestbook_entries_created_at ON guestbook_entries(created_at);

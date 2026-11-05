@@ -138,6 +138,8 @@ export const guestbookEntries = pgTable(
     id: uuid('id').defaultRandom().primaryKey(),
     author_name: varchar('author_name', { length: 50 }).default('guest').notNull(),
     content: text('content').notNull(),
+    reply_content: text('reply_content'),
+    replied_at: timestamp('replied_at', { withTimezone: true }),
     created_at: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
   },
   (table) => [index('idx_guestbook_entries_created_at').on(table.created_at.desc())]
