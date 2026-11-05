@@ -258,7 +258,7 @@ export default function SettingsClient({
       <div className="bracket-card" style={css("padding: 32px;")}>
         <div style={css("margin-bottom: 20px;")}>
           <div style={css("display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;")}>
-            <div style={css("font-family: var(--mono); font-size: 0.65rem; color: var(--accent); letter-spacing: 2px;")}>// LOGIN • NEON AUTH</div>
+            <div style={css("font-family: var(--mono); font-size: 0.65rem; color: var(--accent); letter-spacing: 2px;")}>// LOGIN • CLOUDFLARE D1</div>
             {!isConfigured && (
               <span style={css("font-family: var(--mono); font-size: 0.6rem; color: #e5c07b; border: 1px solid #e5c07b44; padding: 2px 6px; border-radius: 2px;")}>CONFIG PENDING</span>
             )}

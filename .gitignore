@@ -96,3 +96,5 @@ assets/music/*
 # Cloudflare Wrangler
 .wrangler/
 
+.vercel
+.env*
