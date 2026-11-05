@@ -4,8 +4,7 @@ import path from 'node:path';
 import readline from 'node:readline/promises';
 import { stdin as input, stdout as output } from 'node:process';
 import crypto from 'node:crypto';
-import { createAuthClient } from '@neondatabase/auth';
-import { neon } from '@neondatabase/serverless';
+import { execSync } from 'node:child_process';
 
 // 1. Connect to .env.local (and fallbacks)
 function loadEnv() {
@@ -52,7 +51,7 @@ function loadEnv() {
   return loadedFrom;
 }
 
-// 2. Hash password with PBKDF2 (for fallback database table)
+// 2. Hash password with PBKDF2 (salt:hash format)
 function hashPassword(password) {
   const salt = crypto.randomBytes(16).toString('hex');
   const hash = crypto.pbkdf2Sync(password, salt, 100000, 64, 'sha512').toString('hex');
@@ -62,23 +61,20 @@ function hashPassword(password) {
 // 3. CLI Argument parser
 function parseArgs() {
   const args = process.argv.slice(2);
-  let email = null;
   let username = null;
   let password = null;
+  let help = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
-    if (arg === '--email' || arg === '-e') {
-      email = args[i + 1];
-      i++;
+    if (arg === '--help' || arg === '-h') {
+      help = true;
     } else if (arg === '--username' || arg === '-u' || arg === '--name' || arg === '-n') {
       username = args[i + 1];
       i++;
     } else if (arg === '--password' || arg === '-p') {
       password = args[i + 1];
       i++;
-    } else if (!email && arg.includes('@')) {
-      email = arg;
     } else if (!username && !arg.startsWith('-')) {
       username = arg;
     } else if (!password && !arg.startsWith('-')) {
@@ -86,38 +82,106 @@ function parseArgs() {
     }
   }
 
-  return { email, username, password };
+  return { username, password, help };
+}
+
+// 4. Resolve Wrangler OAuth token or API token
+function resolveToken() {
+  if (process.env.CLOUDFLARE_API_TOKEN) {
+    return process.env.CLOUDFLARE_API_TOKEN;
+  }
+  const wranglerConfigPaths = [
+    '/root/.config/.wrangler/config/default.toml',
+    process.env.HOME ? `${process.env.HOME}/.config/.wrangler/config/default.toml` : null,
+  ].filter(Boolean);
+
+  for (const p of wranglerConfigPaths) {
+    if (fs.existsSync(p)) {
+      try {
+        const content = fs.readFileSync(p, 'utf-8');
+        const match = content.match(/oauth_token\s*=\s*"([^"]+)"/);
+        if (match && match[1]) {
+          return match[1];
+        }
+      } catch {}
+    }
+  }
+  return null;
+}
+
+async function executeD1Query(sql, params = []) {
+  const accountId =
+    process.env.CLOUDFLARE_ACCOUNT_ID || '8ad3f9b7260f39b307bc5f9650e33e6c';
+  const databaseId =
+    process.env.CLOUDFLARE_D1_DATABASE_ID || '942a6afe-bbc5-4558-832e-761c02d90d0f';
+  const token = resolveToken();
+
+  if (token) {
+    try {
+      const res = await fetch(
+        `https://api.cloudflare.com/client/v4/accounts/${accountId}/d1/database/${databaseId}/query`,
+        {
+          method: 'POST',
+          headers: {
+            Authorization: `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ sql, params }),
+        }
+      );
+      const data = await res.json();
+      if (data.success && data.result) {
+        return { success: true, result: data.result[0]?.results || [] };
+      }
+    } catch (err) {
+      // Fall through to wrangler CLI
+    }
+  }
+
+  // Fallback to wrangler CLI
+  let formatted = sql;
+  for (const p of params) {
+    const val =
+      p === null ? 'NULL' : typeof p === 'number' ? String(p) : `'${String(p).replace(/'/g, "''")}'`;
+    formatted = formatted.replace('?', val);
+  }
+
+  const cmd = `wrangler d1 execute kurzagin --remote --command=${JSON.stringify(formatted)} --json`;
+  const out = execSync(cmd, { encoding: 'utf-8' });
+  const data = JSON.parse(out);
+  return { success: data[0]?.success, result: data[0]?.results || [] };
 }
 
 async function main() {
   console.log('\n========================================');
-  console.log('  kurzagin // OPERATOR ACCOUNT CREATOR');
-  console.log('  Powered by Neon Auth & Neon Postgres');
+  console.log('  kurzagin // OPERATOR USER CREATOR');
+  console.log('  Cloudflare D1 Database Provisioning');
   console.log('========================================\n');
 
   const envFile = loadEnv();
   if (envFile) {
     console.log(`[env] Configuration connected from: ${envFile}`);
-  } else {
-    console.log('[env] Notice: No .env.local found. Checked root and apps/web directories.');
   }
 
-  let { email, username, password } = parseArgs();
+  let { username, password, help } = parseArgs();
 
-  // Prompt interactively if arguments are missing
-  if (!username || !email || !password) {
+  if (help) {
+    console.log('Usage:');
+    console.log('  node scripts/create-account.mjs [options]');
+    console.log('  npm run create-account -- [options]\n');
+    console.log('Options:');
+    console.log('  -u, --username <handle>   Operator username / handle (default: kurzagin)');
+    console.log('  -p, --password <secret>   Security passphrase');
+    console.log('  -h, --help                Show this help screen\n');
+    process.exit(0);
+  }
+
+  if (!username || !password) {
     const rl = readline.createInterface({ input, output });
 
     if (!username) {
       const inputUser = await rl.question('// Enter operator handle (default: kurzagin): ');
       username = inputUser.trim() || 'kurzagin';
-    }
-
-    if (!email) {
-      const inputEmail = await rl.question(
-        `// Enter operator email (default: ${username}@krzgn.xyz): `
-      );
-      email = inputEmail.trim() || `${username}@krzgn.xyz`;
     }
 
     if (!password) {
@@ -128,8 +192,8 @@ async function main() {
     rl.close();
   }
 
-  if (!email || !email.includes('@')) {
-    console.error('\n❌ Error: Valid email address is required for Neon Auth.');
+  if (!username) {
+    console.error('\n❌ Error: Username cannot be empty.');
     process.exit(1);
   }
 
@@ -138,84 +202,40 @@ async function main() {
     process.exit(1);
   }
 
-  const neonAuthUrl = process.env.NEON_AUTH_BASE_URL;
-  const databaseUrl = process.env.DATABASE_URL;
+  const passwordHash = hashPassword(password);
+  const userId = crypto.randomUUID();
 
-  let neonAuthSuccess = false;
+  console.log(`\n[d1] Provisioning operator @${username} in Cloudflare D1...`);
 
-  // 1. Create account in Neon Auth (Managed Better Auth)
-  if (neonAuthUrl) {
-    console.log(`\n[auth] Connecting to Neon Auth at ${neonAuthUrl}...`);
-    try {
-      const auth = createAuthClient(neonAuthUrl);
-      const res = await auth.signUp.email({
-        email,
-        password,
-        name: username,
-      });
+  try {
+    const sql = `
+      INSERT INTO admin_users (id, username, password_hash)
+      VALUES (?, ?, ?)
+      ON CONFLICT (username)
+      DO UPDATE SET password_hash = excluded.password_hash;
+    `;
 
-      console.log('\n========================================');
-      console.log('✓ SUCCESS: Operator account created in Neon Auth!');
-      console.log('========================================');
-      console.log(`  Handle:   @${username}`);
-      console.log(`  Email:    ${email}`);
-      console.log(`  Service:  Neon Auth (${neonAuthUrl})`);
-      console.log(`  Login at: http://localhost:4321/login or your production URL`);
-      console.log('========================================\n');
-      neonAuthSuccess = true;
-    } catch (err) {
-      const errMsg = err?.message || String(err);
-      if (errMsg.toLowerCase().includes('already exists') || errMsg.includes('422')) {
-        console.log(`\n[auth] Notice: An account with email "${email}" already exists in Neon Auth.`);
-        neonAuthSuccess = true;
-      } else {
-        console.warn(`\n[auth] Warning contacting Neon Auth: ${errMsg}`);
-        console.warn('[auth] Note: Ensure "Sign-up with Email" is enabled in your Neon Console (Auth tab).');
-      }
+    const res = await executeD1Query(sql, [userId, username, passwordHash]);
+
+    if (!res.success) {
+      throw new Error('D1 query returned unsuccessful execution');
     }
-  } else {
-    console.log('\n[auth] Notice: NEON_AUTH_BASE_URL is not set yet in your .env.local file.');
-    console.log('[auth] When you enable Managed Auth in the Neon Console, add your URL to .env.local:');
-    console.log('       NEON_AUTH_BASE_URL="https://ep-...neonauth.<region>.aws.neon.tech"\n');
-  }
 
-  // 2. Also sync to database fallback (admin_users table) if DATABASE_URL is available
-  if (databaseUrl) {
-    console.log('[db] Connecting to Neon Postgres database...');
-    try {
-      const sql = neon(databaseUrl);
-
-      await sql`
-        CREATE TABLE IF NOT EXISTS admin_users (
-          id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-          username VARCHAR(50) UNIQUE NOT NULL,
-          password_hash TEXT NOT NULL,
-          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-        )
-      `;
-
-      const passwordHash = hashPassword(password);
-
-      await sql`
-        INSERT INTO admin_users (username, password_hash)
-        VALUES (${username}, ${passwordHash})
-        ON CONFLICT (username)
-        DO UPDATE SET password_hash = EXCLUDED.password_hash
-      `;
-
-      console.log(`✓ Database sync: Operator @${username} credentials synced in Neon Postgres!`);
-    } catch (err) {
-      console.warn('[db] Warning syncing database record:', err.message || err);
-    }
-  }
-
-  if (!neonAuthSuccess && !databaseUrl) {
-    console.error('\n❌ Error: Neither NEON_AUTH_BASE_URL nor DATABASE_URL are configured in your environment.');
-    console.error('Please configure at least one in your .env.local file.');
+    console.log('\n========================================');
+    console.log('✓ SUCCESS: Operator user saved in Cloudflare D1!');
+    console.log('========================================');
+    console.log(`  Operator Handle: @${username}`);
+    console.log(`  Database Target: Cloudflare D1 (kurzagin)`);
+    console.log(`  Web Login:       http://localhost:4321/login or /login on production`);
+    console.log(`  Mobile App Auth: Supported via /api/auth/operator`);
+    console.log('========================================\n');
+  } catch (err) {
+    console.error('\n❌ Error inserting user into Cloudflare D1:', err.message || err);
     process.exit(1);
   }
-
-  console.log('\n[setup] Operator provisioning process complete.\n');
 }
 
-main();
+main().catch((err) => {
+  console.error('\nFatal error:', err);
+  process.exit(1);
+});

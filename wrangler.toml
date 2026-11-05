@@ -1,0 +1,9 @@
+name = "kurzagin"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+account_id = "8ad3f9b7260f39b307bc5f9650e33e6c"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kurzagin"
+database_id = "942a6afe-bbc5-4558-832e-761c02d90d0f"

@@ -80,8 +80,9 @@ export async function POST(request: NextRequest) {
   }
 
   const session = await getSession(cookies, request);
-  const authorName = session?.name || 'Kur Zagin';
+  const authorName = 'Kur Zagin';
   const authorHandle = `@${session?.username || 'kurzagin'}`;
+  const userId = session?.id || null;
 
   try {
     const body = await request.json();
@@ -127,6 +128,7 @@ export async function POST(request: NextRequest) {
     const inserted = await db
       .insert(posts)
       .values({
+        user_id: userId as any,
         content,
         author_name: authorName,
         author_handle: authorHandle,
