@@ -5,21 +5,37 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
   Home, SquarePen, Disc3, Tv, Gamepad2, User, Settings,
-  MoreHorizontal, X, ChevronRight, Play, SkipBack, SkipForward, Download, BookOpen, MessageSquare, Wrench,
+  MoreHorizontal, X, ChevronRight, Play, SkipBack, SkipForward, Download, BookOpen, MessageSquare, Wrench, Inbox,
 } from 'lucide-react';
 import { getCurrent } from './current';
 import type { DbTrack } from '@/lib/db';
 
 export default function MobileNavClient({ tracks }: { tracks: DbTrack[] }) {
   const current = getCurrent(usePathname());
-  const isMoreActive = ['profile', 'anime', 'games', 'novels', 'settings', 'guestbook'].includes(current);
+  const isMoreActive = ['profile', 'anime', 'games', 'novels', 'settings', 'guestbook', 'messages'].includes(current);
   const first = tracks[0];
 
   const [open, setOpen] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [dragY, setDragY] = useState(0);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const startY = useRef(0);
   const curY = useRef(0);
+
+  useEffect(() => {
+    let isMounted = true;
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (isMounted && data?.authenticated) {
+          setIsAuthenticated(true);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   // Close the sheet whenever the route changes
   useEffect(() => { setOpen(false); }, [current]);
@@ -304,6 +320,17 @@ export default function MobileNavClient({ tracks }: { tracks: DbTrack[] }) {
               </div>
               <ChevronRight size={15} className="mobile-sheet-card-arrow" />
             </Link>
+
+            {isAuthenticated && (
+              <Link href="/messages" className={`mobile-sheet-card ${current === 'messages' ? 'active' : ''}`} style={{ borderColor: 'var(--accent)' }}>
+                <div className="mobile-sheet-card-icon" style={{ color: 'var(--accent)' }}><Inbox size={18} /></div>
+                <div className="mobile-sheet-card-body">
+                  <div className="mobile-sheet-card-title" style={{ color: 'var(--accent)' }}>messages</div>
+                  <div className="mobile-sheet-card-desc">operator inbox &amp; comments log</div>
+                </div>
+                <ChevronRight size={15} className="mobile-sheet-card-arrow" />
+              </Link>
+            )}
 
             <Link href="/settings" className={`mobile-sheet-card ${current === 'settings' ? 'active' : ''}`}>
               <div className="mobile-sheet-card-icon"><Settings size={18} /></div>
