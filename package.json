@@ -8,6 +8,8 @@
     "build": "npm run --prefix apps/web build",
     "dev": "npm run --prefix apps/web dev",
     "preview": "npm run --prefix apps/web preview",
+    "mobile:start": "npm run --prefix apps/mobile start",
+    "mobile:android": "npm run --prefix apps/mobile android",
     "create-account": "npm run --prefix apps/web create-account --",
     "change-password": "npm run --prefix apps/web change-password --",
     "db:push": "npm run --prefix apps/web db:push",

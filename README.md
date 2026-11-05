@@ -1,56 +1,64 @@
-# Kur Zagin 𒀭𒆳𒍝𒆳
+# kurzagin
 
-**System architect, solo developer, and builder of strange but useful things.**
-Founder of **VXNUS Studio**.
+Personal monorepo for the Kur Zagin platform, housing both the web client and mobile management applications.
 
-I design products where software, knowledge systems, AI, and immersive interfaces overlap.
+> **Status:** 🚧 In Progress
 
-My work usually begins with a small irritation:
+- **Remote repository:** [github.com/kurzagin/personal-web-app](https://github.com/kurzagin/personal-web-app)
 
-> “Why is this still difficult?”
+---
 
-Then I build the tool I wish already existed.
+## Architecture Overview
 
-## Currently building
-
-* **Siduri** — an AI companion and knowledge layer designed to understand applications without becoming tightly coupled to them ([vxnus-studio/siduri-x](https://github.com/vxnus-studio/siduri-x))
-* **e-teyvat** — a structured and immersive Genshin Impact knowledge platform 🎐 ([vxnus-studio/e-teyvat](https://github.com/vxnus-studio/e-teyvat))
-* Experimental tools for creators, media workflows, archives, and versioned knowledge
-
-## Past projects / Archive
-
-* **[kurzagin-archive](https://github.com/kurzagin/kurzagin-archive)** — personal archive and legacy projects
-
-## What I care about
-
-* Systems that remain understandable as they grow
-* Interfaces with identity, not template-shaped emptiness
-* Useful AI grounded in real data and clear boundaries
-* Fast iteration without sacrificing architecture
-* Preserving knowledge instead of letting it disappear into forgotten folders
-
-## Tools I reach for
+This monorepo is organized under `apps/*`:
 
 ```text
-TypeScript · JavaScript · Python · Rust
-Next.js · React · Expo · PostgreSQL
-AI workflows · API design · Media processing
-System architecture · Product design · Automation
+kurzagin/
+├── apps/
+│   ├── web/        # Web client (consumer-only)
+│   └── mobile/     # Android / Mobile app (auth & management)
+├── assets/         # Shared media & static assets
+├── content/        # Markdown / data content
+└── scripts/        # Utility & migration scripts
 ```
 
-## Philosophy
+### 1. Web (`apps/web`) — Consumer Client
+- **Role:** Pure client / consumer interface.
+- **Tech stack:** Next.js, React, Tailwind CSS, Turbopack.
+- Designed to deliver fast, read-focused access to portfolio, writing, projects, and media without directly handling sensitive administration or user auth management.
 
-Build quickly.
-Question defaults.
-Preserve what matters.
-Accelerate with intention.
+### 2. Android / Mobile (`apps/mobile`) — Auth & Management
+- **Role:** Administrative hub, authentication, and content management.
+- **Tech stack:** React Native, Expo (SDK 58), TypeScript.
+- Handles administrative controls, authentication flows, and operational management for the platform.
 
-## Find me
+---
 
-- **Website** → [kurzagin.com](https://kurzagin.com)
-- **VXNUS Studio** → [vxnus.xyz](https://vxnus.xyz)
-- **GitHub** → [@vxnus-studio](https://github.com/vxnus-studio)
-- **X** → [@kurzagin](https://x.com/kurzagin)
-- **Email** → [venus@kurzagin.com](mailto:venus@kurzagin.com)
+## Development
 
-Ideas, feedback, technical conversations, and unusual collaborations are welcome ✨
+### Prerequisites
+- Node.js >= 22.12.0
+- npm (or compatible package manager)
+
+### Commands
+
+From the workspace root:
+
+```bash
+# Web development
+npm run dev
+
+# Mobile / Android development (Expo)
+npm run mobile:start    # Start Expo Metro bundler
+npm run mobile:android  # Launch Android runner
+
+# Database & utility tasks
+npm run db:push
+npm run db:studio
+```
+
+---
+
+## License
+
+This project is licensed under the [Apache License 2.0](LICENSE).
