@@ -18,9 +18,6 @@ import {
   ChevronRight,
   User,
   Gamepad2,
-  BookOpen,
-  SquarePen,
-  MessageSquare,
   Inbox,
   Settings,
   Play,
@@ -38,9 +35,6 @@ export type TabKey =
   | 'music'
   | 'anime'
   | 'games'
-  | 'novels'
-  | 'blog'
-  | 'guestbook'
   | 'messages'
   | 'profile'
   | 'settings'
@@ -69,9 +63,6 @@ export const BottomNav: React.FC<BottomNavProps> = ({
 
   const isMoreActive = [
     'games',
-    'novels',
-    'blog',
-    'guestbook',
     'messages',
     'profile',
     'settings',
@@ -287,69 +278,26 @@ export const BottomNav: React.FC<BottomNavProps> = ({
                 <ChevronRight size={15} color={colors.textDim} />
               </TouchableOpacity>
 
+              {/* Messages Operator Inbox */}
               <TouchableOpacity
-                style={[styles.sheetCard, activeTab === 'novels' && styles.sheetCardActive]}
-                onPress={() => handleSheetNavigate('novels')}
+                style={[
+                  styles.sheetCard,
+                  activeTab === 'messages' && styles.sheetCardActive,
+                  isAuthenticated && styles.operatorCard,
+                ]}
+                onPress={() => handleSheetNavigate('messages')}
               >
                 <View style={styles.cardIcon}>
-                  <BookOpen size={18} color={colors.accent} />
+                  <Inbox size={18} color={colors.accent} />
                 </View>
                 <View style={styles.cardBody}>
-                  <Text style={styles.cardTitle}>novels</Text>
-                  <Text style={styles.cardDesc}>drafts, story &amp; tactical codex</Text>
+                  <Text style={[styles.cardTitle, { color: colors.accent }]}>
+                    messages
+                  </Text>
+                  <Text style={styles.cardDesc}>operator inbox &amp; comments log</Text>
                 </View>
-                <ChevronRight size={15} color={colors.textDim} />
+                <ChevronRight size={15} color={colors.accent} />
               </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.sheetCard, activeTab === 'blog' && styles.sheetCardActive]}
-                onPress={() => handleSheetNavigate('blog')}
-              >
-                <View style={styles.cardIcon}>
-                  <SquarePen size={18} color={colors.accent} />
-                </View>
-                <View style={styles.cardBody}>
-                  <Text style={styles.cardTitle}>blog</Text>
-                  <Text style={styles.cardDesc}>articles, logs &amp; dispatches</Text>
-                </View>
-                <ChevronRight size={15} color={colors.textDim} />
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.sheetCard, activeTab === 'guestbook' && styles.sheetCardActive]}
-                onPress={() => handleSheetNavigate('guestbook')}
-              >
-                <View style={styles.cardIcon}>
-                  <MessageSquare size={18} color={colors.accent} />
-                </View>
-                <View style={styles.cardBody}>
-                  <Text style={styles.cardTitle}>guestbook</Text>
-                  <Text style={styles.cardDesc}>leave a trace in the back alleys</Text>
-                </View>
-                <ChevronRight size={15} color={colors.textDim} />
-              </TouchableOpacity>
-
-              {isAuthenticated && (
-                <TouchableOpacity
-                  style={[
-                    styles.sheetCard,
-                    activeTab === 'messages' && styles.sheetCardActive,
-                    styles.operatorCard,
-                  ]}
-                  onPress={() => handleSheetNavigate('messages')}
-                >
-                  <View style={styles.cardIcon}>
-                    <Inbox size={18} color={colors.accent} />
-                  </View>
-                  <View style={styles.cardBody}>
-                    <Text style={[styles.cardTitle, { color: colors.accent }]}>
-                      messages
-                    </Text>
-                    <Text style={styles.cardDesc}>operator inbox &amp; comments log</Text>
-                  </View>
-                  <ChevronRight size={15} color={colors.accent} />
-                </TouchableOpacity>
-              )}
 
               <TouchableOpacity
                 style={[styles.sheetCard, activeTab === 'settings' && styles.sheetCardActive]}

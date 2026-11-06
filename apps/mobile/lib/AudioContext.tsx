@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback } from 'react';
 import {
   useAudioPlayer,
   useAudioPlayerStatus,
@@ -18,7 +18,7 @@ interface AudioContextValue {
   togglePlayback: () => void;
   nextTrack: () => void;
   prevTrack: () => void;
-  selectTrack: (idx: number) => void;
+  selectTrack: (idx: number, autoPlay?: boolean) => void;
   seekToRatio: (ratio: number) => void;
   seekRelative: (deltaSeconds: number) => void;
 }
@@ -29,7 +29,19 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   const [tracks, setTracks] = useState<DbTrack[]>([]);
   const [currentIdx, setCurrentIdx] = useState<number>(0);
 
+  // Track refs to always have the latest values in async handlers and event callbacks
+  const tracksRef = useRef<DbTrack[]>(tracks);
+  tracksRef.current = tracks;
+
+  const currentIdxRef = useRef<number>(currentIdx);
+  currentIdxRef.current = currentIdx;
+
   const activeTrack = tracks[currentIdx] || null;
+
+  // Track if audio should play when next track is loaded
+  const shouldPlayRef = useRef<boolean>(false);
+  // Guard against duplicate triggers when a song finishes
+  const hasHandledFinishRef = useRef<boolean>(false);
 
   // Initialize background & silent audio mode
   useEffect(() => {
@@ -46,44 +58,100 @@ export const AudioProvider: React.FC<{ children: React.ReactNode }> = ({ childre
   });
   const status = useAudioPlayerStatus(player);
 
-  // Replace audio source when user selects another track
+  const statusRef = useRef<AudioStatus>(status);
+  statusRef.current = status;
+
+  // Replace audio source and play when track changes
   useEffect(() => {
     if (activeTrack?.audio_url) {
       player.replace(activeTrack.audio_url);
+      hasHandledFinishRef.current = false;
+
+      if (shouldPlayRef.current) {
+        player.play();
+      }
     }
   }, [currentIdx]);
 
-  // Auto-next when song ends
-  useEffect(() => {
-    if (status.didJustFinish && tracks.length > 0) {
-      nextTrack();
+  const nextTrack = useCallback(() => {
+    const list = tracksRef.current;
+    if (list.length === 0) return;
+    shouldPlayRef.current = true;
+    hasHandledFinishRef.current = false;
+    const nextIdx = (currentIdxRef.current + 1) % list.length;
+    setCurrentIdx(nextIdx);
+  }, []);
+
+  const prevTrack = useCallback(() => {
+    const list = tracksRef.current;
+    if (list.length === 0) return;
+    shouldPlayRef.current = true;
+    hasHandledFinishRef.current = false;
+    const prevIdx = (currentIdxRef.current - 1 + list.length) % list.length;
+    setCurrentIdx(prevIdx);
+  }, []);
+
+  const selectTrack = useCallback((idx: number, autoPlay: boolean = true) => {
+    const list = tracksRef.current;
+    if (idx >= 0 && idx < list.length) {
+      shouldPlayRef.current = autoPlay;
+      hasHandledFinishRef.current = false;
+      setCurrentIdx(idx);
     }
-  }, [status.didJustFinish]);
+  }, []);
+
+  // 1. Primary finish listener: direct playbackStatusUpdate subscription
+  useEffect(() => {
+    if (!player) return;
+
+    const sub = player.addListener('playbackStatusUpdate', (s: AudioStatus) => {
+      if (s.didJustFinish && !hasHandledFinishRef.current && tracksRef.current.length > 0) {
+        hasHandledFinishRef.current = true;
+        nextTrack();
+        return;
+      }
+
+      // Check if currentTime reached duration (within 0.5s tolerance)
+      if (
+        !hasHandledFinishRef.current &&
+        s.duration > 0 &&
+        s.currentTime > 0 &&
+        s.currentTime >= s.duration - 0.45 &&
+        !s.playing &&
+        tracksRef.current.length > 0
+      ) {
+        hasHandledFinishRef.current = true;
+        nextTrack();
+      }
+    });
+
+    return () => {
+      sub.remove();
+    };
+  }, [player, nextTrack]);
+
+  // 2. Secondary fallback via useAudioPlayerStatus hook
+  useEffect(() => {
+    if (status.didJustFinish && !hasHandledFinishRef.current && tracks.length > 0) {
+      hasHandledFinishRef.current = true;
+      nextTrack();
+    } else if (
+      !status.didJustFinish &&
+      status.currentTime < (status.duration ? status.duration - 1 : 1)
+    ) {
+      // Reset finish flag when playing from the start of a song
+      hasHandledFinishRef.current = false;
+    }
+  }, [status.didJustFinish, status.currentTime, status.duration, tracks.length, nextTrack]);
 
   const togglePlayback = () => {
     if (!activeTrack) return;
     if (status.playing) {
+      shouldPlayRef.current = false;
       player.pause();
     } else {
+      shouldPlayRef.current = true;
       player.play();
-    }
-  };
-
-  const nextTrack = () => {
-    if (tracks.length === 0) return;
-    const nextIdx = (currentIdx + 1) % tracks.length;
-    setCurrentIdx(nextIdx);
-  };
-
-  const prevTrack = () => {
-    if (tracks.length === 0) return;
-    const prevIdx = (currentIdx - 1 + tracks.length) % tracks.length;
-    setCurrentIdx(prevIdx);
-  };
-
-  const selectTrack = (idx: number) => {
-    if (idx >= 0 && idx < tracks.length) {
-      setCurrentIdx(idx);
     }
   };
 

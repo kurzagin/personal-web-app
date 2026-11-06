@@ -50,11 +50,8 @@ import {
   fetchFeedPosts,
   fetchProfile,
   fetchTracks,
-  fetchGuestbook,
-  postGuestbookReply,
   type WebDbPost,
   type PostMediaItem,
-  type GuestbookEntry,
   type WebProfile,
   type DbTrack,
 } from './lib/api';
@@ -69,8 +66,8 @@ import { AddAnimeScreen } from './components/AddAnimeScreen';
 import { AuthGate } from './components/AuthGate';
 import { ToolsView } from './components/ToolsView';
 import { AnimeView } from './components/AnimeView';
-import { GamesView, NovelsView } from './components/ContentHubs';
-import { GuestbookView } from './components/GuestbookView';
+import { GamesView } from './components/ContentHubs';
+import { MessagesView } from './components/MessagesView';
 import { SettingsView } from './components/SettingsView';
 import { AudioProvider, useAppAudio } from './lib/AudioContext';
 
@@ -105,7 +102,6 @@ function MainApp() {
   const [mediaByPost, setMediaByPost] = useState<Record<string, PostMediaItem[]>>({});
   const [profile, setProfile] = useState<WebProfile | null>(null);
   const [tracks, setTracks] = useState<DbTrack[]>([]);
-  const [guestbookEntries, setGuestbookEntries] = useState<GuestbookEntry[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -148,11 +144,10 @@ function MainApp() {
     else setLoading(true);
 
     try {
-      const [feedData, profileData, tracksData, guestbookData] = await Promise.all([
+      const [feedData, profileData, tracksData] = await Promise.all([
         fetchFeedPosts(endpoint, feedFilter),
         fetchProfile(endpoint),
         fetchTracks(endpoint),
-        fetchGuestbook(endpoint),
       ]);
 
       setPosts(feedData.posts);
@@ -160,7 +155,6 @@ function MainApp() {
       setProfile(profileData);
       setTracks(tracksData);
       setGlobalTracks(tracksData);
-      setGuestbookEntries(guestbookData);
     } catch (err) {
       console.warn('Error synchronizing data with web API:', err);
     } finally {
@@ -174,16 +168,6 @@ function MainApp() {
       loadData();
     }
   }, [initializing, endpoint, feedFilter]);
-
-  const handleSendGuestbookReply = async (id: string, replyContent: string): Promise<boolean> => {
-    if (!token) return false;
-    const res = await postGuestbookReply(endpoint, token, id, replyContent);
-    if (res.success) {
-      await loadData();
-      return true;
-    }
-    return false;
-  };
 
   const handleOperatorLoginSuccess = async (newToken: string, newUsername: string) => {
     setToken(newToken);
@@ -380,18 +364,7 @@ function MainApp() {
               })
             )}
 
-            {/* Operator Dossier on Home Tab */}
-            {activeTab === 'home' && (
-              <>
-                <View style={styles.divider} />
-                <View style={styles.sectionHead}>
-                  <Text style={styles.sectionTitle}>operator</Text>
-                  <Text style={styles.jpLabel}>人物</Text>
-                  <View style={styles.line} />
-                </View>
-                <DossierView profile={profile} endpoint={endpoint} />
-              </>
-            )}
+            {/* Operator Dossier removed from main Home page per instructions */}
           </ScrollView>
         ) : activeTab === 'tools' ? (
           <ToolsView />
@@ -412,18 +385,11 @@ function MainApp() {
           <AnimeView endpoint={endpoint} />
         ) : activeTab === 'games' ? (
           <GamesView />
-        ) : activeTab === 'novels' ? (
-          <NovelsView />
-        ) : activeTab === 'guestbook' || activeTab === 'messages' ? (
-          <GuestbookView
+        ) : activeTab === 'messages' ? (
+          <MessagesView
             endpoint={endpoint}
-            entries={guestbookEntries}
-            loading={loading}
-            refreshing={refreshing}
-            onRefresh={() => loadData(true)}
-            onEntryAdded={() => loadData()}
-            onSendReply={token ? handleSendGuestbookReply : undefined}
-            isAuthenticated={!!token}
+            token={token}
+            operatorUser={operatorUser}
           />
         ) : activeTab === 'profile' ? (
           <ScrollView
@@ -441,7 +407,14 @@ function MainApp() {
               <Text style={styles.jpLabel}>人物</Text>
               <View style={styles.line} />
             </View>
-            <DossierView profile={profile} endpoint={endpoint} />
+            <DossierView
+              profile={profile}
+              endpoint={endpoint}
+              token={token}
+              operatorUser={operatorUser}
+              onProfileUpdated={() => loadData()}
+              showEditControl={true}
+            />
           </ScrollView>
         ) : activeTab === 'settings' ? (
           <SettingsView
