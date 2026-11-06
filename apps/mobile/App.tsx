@@ -3,15 +3,40 @@ import {
   StyleSheet,
   Text,
   View,
-  FlatList,
   TouchableOpacity,
-  SafeAreaView,
   ActivityIndicator,
   RefreshControl,
   ScrollView,
   Image,
+  Platform,
+  StatusBar as RNStatusBar,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
+import {
+  SafeAreaProvider,
+  useSafeAreaInsets,
+} from 'react-native-safe-area-context';
+import {
+  useFonts,
+  IBMPlexMono_300Light,
+  IBMPlexMono_400Regular,
+  IBMPlexMono_500Medium,
+  IBMPlexMono_600SemiBold,
+  IBMPlexMono_700Bold,
+} from '@expo-google-fonts/ibm-plex-mono';
+import {
+  IBMPlexSans_300Light,
+  IBMPlexSans_400Regular,
+  IBMPlexSans_500Medium,
+  IBMPlexSans_600SemiBold,
+  IBMPlexSans_700Bold,
+} from '@expo-google-fonts/ibm-plex-sans';
+import {
+  NotoSansJP_300Light,
+  NotoSansJP_400Regular,
+  NotoSansJP_500Medium,
+  NotoSansJP_700Bold,
+} from '@expo-google-fonts/noto-sans-jp';
 import { colors, typography, spacing } from '@kurzagin/ui';
 import {
   loadStoredSession,
@@ -32,15 +57,39 @@ import {
   type WebProfile,
   type DbTrack,
 } from './lib/api';
-import { AuthGate } from './components/AuthGate';
 import { PostCard } from './components/PostCard';
-import { GuestbookCard } from './components/GuestbookCard';
 import { DossierView } from './components/DossierView';
 import { MusicView } from './components/MusicView';
 import { BottomNav, type TabKey } from './components/BottomNav';
 import { CreatePostModal } from './components/CreatePostModal';
+import { AuthGate } from './components/AuthGate';
+import { ToolsView } from './components/ToolsView';
+import { AnimeView } from './components/AnimeView';
+import { GamesView, NovelsView } from './components/ContentHubs';
+import { GuestbookView } from './components/GuestbookView';
+import { SettingsView } from './components/SettingsView';
+import { AudioProvider, useAppAudio } from './lib/AudioContext';
 
-export default function App() {
+function MainApp() {
+  const insets = useSafeAreaInsets();
+  const { setTracks: setGlobalTracks } = useAppAudio();
+  const [fontsLoaded] = useFonts({
+    IBMPlexMono_300Light,
+    IBMPlexMono_400Regular,
+    IBMPlexMono_500Medium,
+    IBMPlexMono_600SemiBold,
+    IBMPlexMono_700Bold,
+    IBMPlexSans_300Light,
+    IBMPlexSans_400Regular,
+    IBMPlexSans_500Medium,
+    IBMPlexSans_600SemiBold,
+    IBMPlexSans_700Bold,
+    NotoSansJP_300Light,
+    NotoSansJP_400Regular,
+    NotoSansJP_500Medium,
+    NotoSansJP_700Bold,
+  });
+
   const [initializing, setInitializing] = useState(true);
   const [endpoint, setEndpoint] = useState<string>(DEFAULT_ENDPOINT);
   const [token, setToken] = useState<string | null>(null);
@@ -82,7 +131,6 @@ export default function App() {
   }, []);
 
   const loadData = async (isRefresh = false) => {
-    if (!token) return;
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
@@ -98,9 +146,10 @@ export default function App() {
       setMediaByPost(feedData.mediaByPost);
       setProfile(profileData);
       setTracks(tracksData);
+      setGlobalTracks(tracksData);
       setGuestbookEntries(guestbookData);
     } catch (err) {
-      console.warn('Data load error:', err);
+      console.warn('Error synchronizing data with web API:', err);
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -108,103 +157,89 @@ export default function App() {
   };
 
   useEffect(() => {
-    if (token) {
+    if (!initializing) {
       loadData();
     }
-  }, [token, feedFilter]);
+  }, [initializing, endpoint, feedFilter]);
 
-  const handleAuthenticated = async (
-    newToken: string,
-    newEndpoint: string,
-    username: string
-  ) => {
-    setToken(newToken);
-    setEndpoint(newEndpoint);
-    setOperatorUser(username);
-    await saveStoredSession(newEndpoint, newToken, username);
-  };
-
-  const handleDisconnect = async () => {
-    setToken(null);
-    setOperatorUser(null);
-    setPosts([]);
-    setGuestbookEntries([]);
-    await clearStoredSession();
-  };
-
-  const handleSendGuestbookReply = async (entryId: string, replyText: string) => {
+  const handleSendGuestbookReply = async (id: string, replyContent: string): Promise<boolean> => {
     if (!token) return false;
-    const res = await postGuestbookReply(endpoint, token, entryId, replyText);
+    const res = await postGuestbookReply(endpoint, token, id, replyContent);
     if (res.success) {
-      const refreshed = await fetchGuestbook(endpoint);
-      setGuestbookEntries(refreshed);
+      await loadData();
       return true;
     }
     return false;
   };
 
-  if (initializing) {
+  const handleOperatorLoginSuccess = async (newToken: string, newUsername: string) => {
+    setToken(newToken);
+    setOperatorUser(newUsername);
+    await saveStoredSession(endpoint, newToken, newUsername);
+  };
+
+  const handleOperatorLogout = async () => {
+    setToken(null);
+    setOperatorUser(null);
+    await clearStoredSession();
+  };
+
+  const handleUpdateEndpoint = async (newEndpoint: string) => {
+    setEndpoint(newEndpoint);
+    await saveStoredSession(newEndpoint, token, operatorUser);
+  };
+
+  // Top inset to guarantee Android camera cutout & status bar safety
+  const safeTopPadding = Math.max(
+    insets.top,
+    Platform.OS === 'android' ? (RNStatusBar.currentHeight || 24) : 0
+  );
+
+  if (initializing || !fontsLoaded) {
     return (
-      <SafeAreaView style={styles.loadingScreen}>
-        <StatusBar style="light" />
+      <View style={[styles.loadingScreen, { paddingTop: safeTopPadding }]}>
         <ActivityIndicator size="large" color={colors.accent} />
-        <Text style={styles.loadingText}>// INITIALIZING TERMINAL...</Text>
-      </SafeAreaView>
+        <Text style={styles.loadingText}>INITIALIZING KURZAGIN OS...</Text>
+      </View>
     );
   }
 
-  // Auth Gate: Pure URL + zero secrets embedded
+  // Operator Security Gate: full app gate when not authenticated
   if (!token) {
     return (
-      <SafeAreaView style={styles.safeArea}>
+      <View style={[styles.rootContainer, { paddingTop: safeTopPadding }]}>
         <StatusBar style="light" />
         <AuthGate
           initialEndpoint={endpoint}
-          onAuthenticated={handleAuthenticated}
+          onAuthenticated={async (newToken, cleanEndpoint, username) => {
+            setEndpoint(cleanEndpoint);
+            await handleOperatorLoginSuccess(newToken, username);
+          }}
         />
-      </SafeAreaView>
+      </View>
     );
   }
 
   return (
-    <SafeAreaView style={styles.safeArea}>
+    <View style={[styles.rootContainer, { paddingTop: safeTopPadding }]}>
       <StatusBar style="light" />
 
-      {/* 1:1 Top Brand Navigation Bar */}
+      {/* Top Navigation Header (100% 1:1 with Web nav.top-nav) */}
       <View style={styles.topNav}>
-        <TouchableOpacity style={styles.navBrand} onPress={() => setActiveTab('home')}>
+        <TouchableOpacity
+          style={styles.navBrand}
+          onPress={() => setActiveTab('home')}
+          activeOpacity={0.7}
+        >
           <View style={styles.brandDot} />
-          <Text style={styles.brandText}>kurzagin</Text>
+          <Text style={styles.brandTitle}>kurzagin</Text>
           <Text style={styles.brandJp}>クルザギン</Text>
         </TouchableOpacity>
-
-        <View style={styles.headerRight}>
-          <TouchableOpacity
-            style={styles.transmitBtn}
-            onPress={() => setShowCreateModal(true)}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.transmitText}>+ TRANSMIT</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.exitBtn}
-            onPress={handleDisconnect}
-            activeOpacity={0.8}
-          >
-            <Text style={styles.exitText}>LOGOUT</Text>
-          </TouchableOpacity>
-        </View>
       </View>
 
-      {/* Main Tab Views */}
+      {/* Dynamic Screen Routing */}
       <View style={styles.mainContent}>
-        {loading && !refreshing ? (
-          <View style={styles.centerContainer}>
-            <ActivityIndicator size="small" color={colors.accent} />
-            <Text style={styles.fetchingText}>SYNCHRONIZING TERMINAL...</Text>
-          </View>
-        ) : activeTab === 'home' || activeTab === 'blog' ? (
+        {activeTab === 'home' || activeTab === 'blog' ? (
           <ScrollView
             contentContainerStyle={styles.scrollList}
             refreshControl={
@@ -251,24 +286,26 @@ export default function App() {
               <Text style={styles.sectionTitle}>blog</Text>
               <Text style={styles.jpLabel}>日誌</Text>
               <View style={styles.line} />
-              <Text style={styles.operatorTag}>// @{operatorUser}</Text>
+              <Text style={styles.operatorTag}>// @{operatorUser || 'kurzagin'}</Text>
             </View>
 
-            {/* In-place Transmission Trigger */}
-            <TouchableOpacity
-              style={styles.composerBar}
-              onPress={() => setShowCreateModal(true)}
-              activeOpacity={0.85}
-            >
-              <View style={[styles.corner, styles.cornerTL]} />
-              <View style={[styles.corner, styles.cornerBR]} />
-              <Text style={styles.composerTag}>// TRANSMISSION CONSOLE</Text>
-              <Text style={styles.composerPlaceholder}>
-                broadcast new transmission to kurzagin... (supports #tags)
-              </Text>
-            </TouchableOpacity>
+            {/* Transmission Trigger for Operator */}
+            {token && (
+              <TouchableOpacity
+                style={styles.composerBar}
+                onPress={() => setShowCreateModal(true)}
+                activeOpacity={0.85}
+              >
+                <View style={[styles.corner, styles.cornerTL]} />
+                <View style={[styles.corner, styles.cornerBR]} />
+                <Text style={styles.composerTag}>// TRANSMISSION CONSOLE</Text>
+                <Text style={styles.composerPlaceholder}>
+                  broadcast new transmission to kurzagin... (supports #tags)
+                </Text>
+              </TouchableOpacity>
+            )}
 
-            {/* 1:1 Feed Category Filter Bar */}
+            {/* Feed Filter Bar */}
             <View style={styles.filterBar}>
               <TouchableOpacity
                 style={[styles.filterBtn, feedFilter === 'all' && styles.filterBtnActive]}
@@ -303,28 +340,34 @@ export default function App() {
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyTitle}>NO TRANSMISSIONS LOGGED</Text>
                 <Text style={styles.emptySubtitle}>
-                  The back alleys are quiet tonight. Awaiting operator broadcast.
+                  The back alleys are quiet tonight.
                 </Text>
               </View>
             ) : (
-              posts.map((post) => (
-                <PostCard
-                  key={post.id}
-                  id={post.id}
-                  authorName={post.author_name}
-                  authorHandle={post.author_handle}
-                  avatarUrl={profile?.avatar_url}
-                  content={post.content}
-                  category={post.category}
-                  createdAt={post.created_at}
-                  likesCount={post.likes_count}
-                  media={mediaByPost[post.id] || []}
-                  animeMeta={post.anime_meta}
-                />
-              ))
+              posts.map((post) => {
+                const postMediaList = (post.media && post.media.length > 0)
+                  ? post.media
+                  : (mediaByPost[post.id] || []);
+
+                return (
+                  <PostCard
+                    key={post.id}
+                    id={post.id}
+                    authorName={post.author_name}
+                    authorHandle={post.author_handle}
+                    avatarUrl={post.author_avatar || profile?.avatar_url}
+                    content={post.content}
+                    category={post.category}
+                    createdAt={post.created_at}
+                    likesCount={post.likes_count}
+                    media={postMediaList}
+                    animeMeta={post.anime_meta}
+                  />
+                );
+              })
             )}
 
-            {/* Operator Dossier Preview on Home Tab */}
+            {/* Operator Dossier on Home Tab */}
             {activeTab === 'home' && (
               <>
                 <View style={styles.divider} />
@@ -337,6 +380,8 @@ export default function App() {
               </>
             )}
           </ScrollView>
+        ) : activeTab === 'tools' ? (
+          <ToolsView />
         ) : activeTab === 'music' ? (
           <ScrollView
             contentContainerStyle={styles.scrollList}
@@ -350,37 +395,24 @@ export default function App() {
           >
             <MusicView tracks={tracks} endpoint={endpoint} />
           </ScrollView>
-        ) : activeTab === 'messages' ? (
-          <FlatList
-            data={guestbookEntries}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <GuestbookCard entry={item} onSendReply={handleSendGuestbookReply} />
-            )}
-            contentContainerStyle={styles.scrollList}
-            refreshControl={
-              <RefreshControl
-                refreshing={refreshing}
-                onRefresh={() => loadData(true)}
-                tintColor={colors.accent}
-              />
-            }
-            ListHeaderComponent={
-              <View style={styles.sectionHead}>
-                <Text style={styles.sectionTitle}>guestbook</Text>
-                <Text style={styles.jpLabel}>伝言板</Text>
-                <View style={styles.line} />
-                <Text style={styles.operatorTag}>// {guestbookEntries.length} MESSAGES</Text>
-              </View>
-            }
-            ListEmptyComponent={
-              <View style={styles.emptyContainer}>
-                <Text style={styles.emptyTitle}>NO MESSAGES</Text>
-                <Text style={styles.emptySubtitle}>Guestbook entries will appear here.</Text>
-              </View>
-            }
+        ) : activeTab === 'anime' ? (
+          <AnimeView endpoint={endpoint} />
+        ) : activeTab === 'games' ? (
+          <GamesView />
+        ) : activeTab === 'novels' ? (
+          <NovelsView />
+        ) : activeTab === 'guestbook' || activeTab === 'messages' ? (
+          <GuestbookView
+            endpoint={endpoint}
+            entries={guestbookEntries}
+            loading={loading}
+            refreshing={refreshing}
+            onRefresh={() => loadData(true)}
+            onEntryAdded={() => loadData()}
+            onSendReply={token ? handleSendGuestbookReply : undefined}
+            isAuthenticated={!!token}
           />
-        ) : (
+        ) : activeTab === 'profile' ? (
           <ScrollView
             contentContainerStyle={styles.scrollList}
             refreshControl={
@@ -398,26 +430,53 @@ export default function App() {
             </View>
             <DossierView profile={profile} endpoint={endpoint} />
           </ScrollView>
-        )}
+        ) : activeTab === 'settings' ? (
+          <SettingsView
+            endpoint={endpoint}
+            onUpdateEndpoint={handleUpdateEndpoint}
+            token={token}
+            operatorUser={operatorUser}
+            onLoginSuccess={handleOperatorLoginSuccess}
+            onLogout={handleOperatorLogout}
+          />
+        ) : null}
       </View>
 
       {/* 1:1 Cyberpunk Bottom Navigation Bar */}
-      <BottomNav activeTab={activeTab} onSelectTab={setActiveTab} />
-
-      {/* Composer Modal */}
-      <CreatePostModal
-        visible={showCreateModal}
-        endpoint={endpoint}
-        token={token}
-        onPostCreated={() => loadData()}
-        onClose={() => setShowCreateModal(false)}
+      <BottomNav
+        activeTab={activeTab}
+        onSelectTab={setActiveTab}
+        tracks={tracks}
+        isAuthenticated={!!token}
+        bottomInset={insets.bottom}
       />
-    </SafeAreaView>
+
+      {/* Composer Modal for Operator */}
+      {token ? (
+        <CreatePostModal
+          visible={showCreateModal}
+          endpoint={endpoint}
+          token={token}
+          onPostCreated={() => loadData()}
+          onClose={() => setShowCreateModal(false)}
+        />
+      ) : null}
+    </View>
+  );
+}
+
+export default function App() {
+  return (
+    <SafeAreaProvider>
+      <AudioProvider>
+        <MainApp />
+      </AudioProvider>
+    </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
-  safeArea: {
+  rootContainer: {
     flex: 1,
     backgroundColor: '#0a0a0c',
   },
@@ -437,17 +496,16 @@ const styles = StyleSheet.create({
   topNav: {
     height: 48,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.md,
-    backgroundColor: '#0a0a0c',
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(10, 10, 12, 0.95)',
     borderBottomWidth: 1,
-    borderBottomColor: '#27272a',
+    borderBottomColor: '#2a2a30',
   },
   navBrand: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 8,
   },
   brandDot: {
     width: 6,
@@ -455,147 +513,105 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: colors.accent,
   },
-  brandText: {
+  brandTitle: {
     fontFamily: typography.fontMono,
-    fontSize: 14,
-    fontWeight: 'bold',
-    color: colors.text,
+    color: '#e2ded6',
+    fontSize: 13,
+    fontWeight: '500',
     letterSpacing: 1,
   },
   brandJp: {
-    fontFamily: typography.fontMono,
-    fontSize: 10,
-    color: colors.textDim,
-  },
-  headerRight: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  transmitBtn: {
-    backgroundColor: colors.accent,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 3,
-  },
-  transmitText: {
-    fontFamily: typography.fontMono,
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#0a0a0c',
-  },
-  exitBtn: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  exitText: {
-    fontFamily: typography.fontMono,
-    fontSize: 10,
-    color: colors.textDim,
+    fontFamily: typography.fontJp,
+    color: '#706c66',
+    fontSize: 11,
+    marginLeft: 2,
   },
   mainContent: {
     flex: 1,
+    backgroundColor: '#0a0a0c',
   },
   scrollList: {
     padding: spacing.md,
-    paddingBottom: spacing.xxl,
-  },
-  centerContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: spacing.sm,
-  },
-  fetchingText: {
-    fontFamily: typography.fontMono,
-    fontSize: 11,
-    color: colors.textDim,
+    paddingBottom: 40,
   },
   heroSection: {
-    marginBottom: spacing.md,
+    marginBottom: spacing.lg,
   },
   heroBannerWrap: {
-    height: 150,
+    height: 140,
+    width: '100%',
     borderRadius: 6,
     overflow: 'hidden',
     position: 'relative',
-    backgroundColor: '#121215',
     borderWidth: 1,
     borderColor: '#27272a',
+    backgroundColor: '#121215',
     marginBottom: spacing.md,
   },
   heroBannerImg: {
     width: '100%',
     height: '100%',
+    resizeMode: 'cover',
   },
   heroGridOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: 'rgba(10, 10, 12, 0.45)',
+    ...StyleSheet.absoluteFill,
+    backgroundColor: 'rgba(10, 10, 12, 0.35)',
   },
   heroCoordTop: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 6,
+    left: 8,
     fontFamily: typography.fontMono,
     fontSize: 9,
-    color: colors.textDim,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 4,
-    paddingVertical: 2,
+    color: 'rgba(255, 255, 255, 0.7)',
+    letterSpacing: 0.5,
   },
   heroCoordBottom: {
     position: 'absolute',
-    bottom: 8,
+    bottom: 6,
     right: 8,
     fontFamily: typography.fontMono,
     fontSize: 9,
-    color: colors.textDim,
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    paddingHorizontal: 4,
-    paddingVertical: 2,
+    color: 'rgba(255, 255, 255, 0.7)',
+    letterSpacing: 0.5,
   },
   heroContent: {
-    paddingVertical: spacing.xs,
+    gap: 4,
   },
   heroLabel: {
     fontFamily: typography.fontMono,
     fontSize: 10,
     color: colors.accent,
     letterSpacing: 1.5,
-    marginBottom: 4,
   },
   heroTitle: {
     fontFamily: typography.fontMono,
     fontSize: 22,
     fontWeight: 'bold',
     color: colors.text,
-    lineHeight: 28,
+    lineHeight: 26,
   },
   heroJpSub: {
     fontFamily: typography.fontMono,
     fontSize: 11,
     color: colors.textDim,
-    marginTop: 2,
-    marginBottom: spacing.sm,
+    letterSpacing: 1,
   },
   heroDesc: {
     fontFamily: typography.fontSans,
     fontSize: 12,
     color: colors.textMuted,
     lineHeight: 18,
+    marginTop: 4,
   },
   divider: {
     height: 1,
-    backgroundColor: '#27272a',
+    backgroundColor: '#1e1e24',
     marginVertical: spacing.lg,
   },
   sectionHead: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     gap: 8,
     marginBottom: spacing.md,
   },
@@ -607,7 +623,7 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
   },
   jpLabel: {
-    fontFamily: typography.fontMono,
+    fontFamily: typography.fontJp,
     fontSize: 11,
     color: colors.textDim,
   },

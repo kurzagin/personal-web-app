@@ -1,8 +1,25 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, Image, TouchableOpacity, Linking } from 'react-native';
-import { Play, Pause, SkipBack, SkipForward, Disc3, ExternalLink } from 'lucide-react-native';
-import { colors, typography, spacing } from '@kurzagin/ui';
+import React, { useEffect, useRef } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  Image,
+  TouchableOpacity,
+  Animated,
+  Easing,
+  ActivityIndicator,
+} from 'react-native';
+import {
+  Play,
+  Pause,
+  SkipBack,
+  SkipForward,
+  RotateCcw,
+  RotateCw,
+} from 'lucide-react-native';
+import { colors, typography } from '@kurzagin/ui';
 import type { DbTrack } from '../lib/api';
+import { useAppAudio } from '../lib/AudioContext';
 
 interface MusicViewProps {
   tracks: DbTrack[];
@@ -10,20 +27,57 @@ interface MusicViewProps {
 }
 
 export const MusicView: React.FC<MusicViewProps> = ({ tracks, endpoint }) => {
-  const [currentIdx, setCurrentIdx] = useState(0);
-  const [isPlaying, setIsPlaying] = useState(false);
+  const {
+    currentIdx,
+    activeTrack,
+    status,
+    togglePlayback,
+    nextTrack,
+    prevTrack,
+    selectTrack,
+    seekToRatio,
+    seekRelative,
+  } = useAppAudio();
 
-  const activeTrack = tracks[currentIdx] || null;
+  const spinValue = useRef(new Animated.Value(0)).current;
 
-  const handleNext = () => {
-    if (tracks.length === 0) return;
-    setCurrentIdx((prev) => (prev + 1) % tracks.length);
+  // Continuous turntable rotation matching web `.vinyl { animation: spin 4s linear infinite; }`
+  useEffect(() => {
+    let animation: Animated.CompositeAnimation | null = null;
+    if (status.playing) {
+      animation = Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 4000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      );
+      animation.start();
+    } else {
+      spinValue.stopAnimation();
+    }
+    return () => {
+      if (animation) animation.stop();
+    };
+  }, [status.playing]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const formatSecs = (seconds: number) => {
+    if (!seconds || isNaN(seconds)) return '0:00';
+    const mins = Math.floor(seconds / 60);
+    const secs = Math.floor(seconds % 60);
+    return `${mins}:${secs < 10 ? '0' : ''}${secs}`;
   };
 
-  const handlePrev = () => {
-    if (tracks.length === 0) return;
-    setCurrentIdx((prev) => (prev - 1 + tracks.length) % tracks.length);
-  };
+  const totalDuration = status.duration || (typeof activeTrack?.duration_sec === 'number' ? activeTrack.duration_sec : 0);
+  const progressPercent = totalDuration > 0
+    ? Math.min(100, (status.currentTime / totalDuration) * 100)
+    : 0;
 
   return (
     <View style={styles.container}>
@@ -35,97 +89,166 @@ export const MusicView: React.FC<MusicViewProps> = ({ tracks, endpoint }) => {
         <Text style={styles.tracksCount}>// {tracks.length} TRACKS</Text>
       </View>
 
-      {/* Main Vinyl Player Card (1:1 Web Bracket Card) */}
-      <View style={styles.card}>
+      {/* 1:1 Main Vinyl Player Wrap (Bracket Card) */}
+      <View style={styles.bracketCard}>
+        {/* Corner Brackets */}
         <View style={[styles.corner, styles.cornerTL]} />
         <View style={[styles.corner, styles.cornerBR]} />
 
-        <View style={styles.turntableRow}>
-          {/* Vinyl Ring and Turntable Center */}
+        {/* 1:1 Turntable Deck Area */}
+        <View style={styles.turntableArea}>
           <TouchableOpacity
             style={styles.vinylArea}
-            onPress={() => setIsPlaying(!isPlaying)}
-            activeOpacity={0.8}
+            onPress={togglePlayback}
+            activeOpacity={0.9}
           >
-            <View style={[styles.vinylDisc, isPlaying && styles.vinylSpinning]}>
+            {/* 1:1 Outer Vinyl Ring */}
+            <View style={styles.vinylRing} />
+
+            {/* 1:1 Rotating Vinyl Disc */}
+            <Animated.View
+              style={[
+                styles.vinylDisc,
+                { transform: [{ rotate: spin }] },
+                status.playing && styles.vinylDiscPlaying,
+              ]}
+            >
+              {/* Grooves & Texture */}
+              <View style={styles.grooveOuter} />
+              <View style={styles.grooveInner} />
+
+              {/* Center Vinyl Label */}
               <View style={styles.vinylCenterLabel}>
                 {activeTrack?.cover_url ? (
-                  <Image source={{ uri: activeTrack.cover_url }} style={styles.vinylCoverImg} />
+                  <Image
+                    source={{ uri: activeTrack.cover_url }}
+                    style={styles.vinylCoverImg}
+                    resizeMode="cover"
+                  />
                 ) : (
                   <Text style={styles.vinylFallback}>KRZ</Text>
                 )}
-                <View style={styles.spindle} />
+                {/* Turntable Spindle */}
+                <View style={styles.vinylSpindle} />
               </View>
-            </View>
+            </Animated.View>
           </TouchableOpacity>
-
-          {/* Track Info & Controls */}
-          <View style={styles.playerMeta}>
-            <View style={styles.statusBadge}>
-              <View style={[styles.pulseDot, isPlaying && styles.pulseDotActive]} />
-              <Text style={styles.statusText}>{isPlaying ? 'NOW PLAYING' : 'TURNTABLE STANDBY'}</Text>
-            </View>
-
-            <Text style={styles.trackTitle} numberOfLines={1}>
-              {activeTrack?.title || 'No track loaded'}
-            </Text>
-            <Text style={styles.trackArtist} numberOfLines={1}>
-              {activeTrack?.artist ? `${activeTrack.artist}${activeTrack.album ? ` — [${activeTrack.album}]` : ''}` : 'Turntable silent'}
-            </Text>
-
-            {/* Playback Controls */}
-            <View style={styles.ctrlRow}>
-              <TouchableOpacity style={styles.ctrlBtn} onPress={handlePrev}>
-                <SkipBack size={14} color={colors.text} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.ctrlBtn, styles.ctrlPlay]}
-                onPress={() => setIsPlaying(!isPlaying)}
-              >
-                {isPlaying ? (
-                  <Pause size={14} color={colors.bg} />
-                ) : (
-                  <Play size={14} color={colors.bg} />
-                )}
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.ctrlBtn} onPress={handleNext}>
-                <SkipForward size={14} color={colors.text} />
-              </TouchableOpacity>
-            </View>
-          </View>
         </View>
 
-        {activeTrack?.audio_url ? (
+        {/* 1:1 Player Info & Controls */}
+        <View style={styles.playerInfo}>
+          <View style={styles.trackNowLabel}>
+            <View style={[styles.pulse, status.playing && styles.pulseActive]} />
+            <Text style={styles.trackNowText}>
+              {status.isBuffering
+                ? 'LOADING STREAM...'
+                : status.playing
+                ? 'NOW PLAYING'
+                : 'TURNTABLE STANDBY'}
+            </Text>
+          </View>
+
+          <Text style={styles.trackTitle} numberOfLines={1}>
+            {activeTrack?.title || 'No track loaded'}
+          </Text>
+          <Text style={styles.trackArtist} numberOfLines={1}>
+            {activeTrack?.artist
+              ? `${activeTrack.artist}${activeTrack.album ? ` — [${activeTrack.album}]` : ''}`
+              : 'Turntable silent'}
+          </Text>
+
+          {/* 1:1 Controls with seeking */}
+          <View style={styles.controlsRow}>
+            <TouchableOpacity style={styles.ctrlBtn} onPress={prevTrack}>
+              <SkipBack size={14} color="#b0aca4" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.ctrlBtn}
+              onPress={() => seekRelative(-10)}
+              accessibilityLabel="Rewind 10 seconds"
+            >
+              <RotateCcw size={14} color="#b0aca4" />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.ctrlBtn, styles.ctrlPlay, status.playing && styles.ctrlPlayActive]}
+              onPress={togglePlayback}
+              disabled={status.isBuffering}
+            >
+              {status.isBuffering ? (
+                <ActivityIndicator size="small" color={colors.accent} />
+              ) : status.playing ? (
+                <Pause size={16} color="#0a0a0c" />
+              ) : (
+                <Play size={16} color={colors.accent} />
+              )}
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.ctrlBtn}
+              onPress={() => seekRelative(10)}
+              accessibilityLabel="Fast forward 10 seconds"
+            >
+              <RotateCw size={14} color="#b0aca4" />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.ctrlBtn} onPress={nextTrack}>
+              <SkipForward size={14} color="#b0aca4" />
+            </TouchableOpacity>
+          </View>
+
+          {/* 1:1 Seekable Progress Track */}
           <TouchableOpacity
-            style={styles.streamLink}
-            onPress={() => Linking.openURL(activeTrack.audio_url)}
+            style={styles.progressTrackWrap}
+            activeOpacity={1}
+            onPress={(e) => {
+              const x = e.nativeEvent.locationX;
+              const ratio = Math.max(0, Math.min(1, x / 280));
+              seekToRatio(ratio);
+            }}
           >
-            <Text style={styles.streamLinkText}>DIRECT R2 AUDIO STREAM</Text>
-            <ExternalLink size={10} color={colors.accent} />
+            <View style={styles.progressTrack}>
+              <View style={[styles.progressFill, { width: `${progressPercent}%` }]} />
+            </View>
           </TouchableOpacity>
-        ) : null}
+
+          {/* 1:1 Time Display */}
+          <View style={styles.timeDisplay}>
+            <Text style={styles.timeText}>{formatSecs(status.currentTime)}</Text>
+            <Text style={styles.timeText}>
+              {totalDuration > 0
+                ? formatSecs(totalDuration)
+                : typeof activeTrack?.duration === 'string'
+                ? activeTrack.duration
+                : '0:00'}
+            </Text>
+          </View>
+        </View>
       </View>
 
-      {/* Crate Tracklist */}
-      <View style={styles.crateList}>
-        <Text style={styles.crateTitle}>// CRATE LOG ({tracks.length})</Text>
+      {/* 1:1 Crate Playlist Log */}
+      <View style={styles.crateWrap}>
+        <View style={styles.crateHeader}>
+          <Text style={styles.crateHeaderTitle}>// CRATE LOG ({tracks.length})</Text>
+        </View>
+
         {tracks.map((t, idx) => (
           <TouchableOpacity
             key={t.id || idx}
             style={[styles.crateItem, currentIdx === idx && styles.crateItemActive]}
             onPress={() => {
-              setCurrentIdx(idx);
-              setIsPlaying(true);
+              selectTrack(idx);
             }}
           >
             <Text style={[styles.crateNum, currentIdx === idx && styles.crateNumActive]}>
-              {String(idx + 1).padStart(2, '0')}.
+              {String(idx + 1).padStart(2, '0')}
             </Text>
-            <View style={styles.crateItemInfo}>
-              <Text style={[styles.crateItemTitle, currentIdx === idx && styles.crateItemTitleActive]}>
+            <View style={styles.crateInfo}>
+              <Text style={[styles.crateTitle, currentIdx === idx && styles.crateTitleActive]}>
                 {t.title}
               </Text>
-              <Text style={styles.crateItemArtist}>{t.artist}</Text>
+              <Text style={styles.crateArtist}>{t.artist}</Text>
             </View>
           </TouchableOpacity>
         ))}
@@ -136,48 +259,51 @@ export const MusicView: React.FC<MusicViewProps> = ({ tracks, endpoint }) => {
 
 const styles = StyleSheet.create({
   container: {
-    padding: spacing.md,
+    padding: 16,
+    paddingBottom: 40,
   },
   sectionHead: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     gap: 8,
-    marginBottom: spacing.md,
+    marginBottom: 16,
   },
   sectionTitle: {
     fontFamily: typography.fontMono,
     fontSize: 16,
     fontWeight: 'bold',
-    color: colors.text,
+    color: '#e2ded6',
     letterSpacing: 1,
   },
   jpLabel: {
-    fontFamily: typography.fontMono,
+    fontFamily: typography.fontJp,
     fontSize: 11,
-    color: colors.textDim,
+    color: '#706c66',
   },
   line: {
     flex: 1,
     height: 1,
-    backgroundColor: '#27272a',
+    backgroundColor: '#2a2a30',
   },
   tracksCount: {
     fontFamily: typography.fontMono,
     fontSize: 10,
-    color: colors.textDim,
+    color: '#706c66',
   },
-  card: {
-    backgroundColor: '#121215',
+  bracketCard: {
+    backgroundColor: '#111114',
     borderWidth: 1,
-    borderColor: '#27272a',
-    padding: spacing.md,
+    borderColor: '#2a2a30',
+    borderRadius: 4,
+    padding: 20,
     position: 'relative',
-    marginBottom: spacing.lg,
+    marginBottom: 24,
+    gap: 16,
   },
   corner: {
     position: 'absolute',
-    width: 8,
-    height: 8,
+    width: 10,
+    height: 10,
     borderColor: colors.accent,
   },
   cornerTL: {
@@ -192,35 +318,63 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1.5,
     borderRightWidth: 1.5,
   },
-  turntableRow: {
-    flexDirection: 'row',
+  turntableArea: {
     alignItems: 'center',
-    gap: spacing.md,
+    justifyContent: 'center',
+    paddingVertical: 10,
   },
   vinylArea: {
-    width: 76,
-    height: 76,
+    width: 200,
+    height: 200,
+    position: 'relative',
     justifyContent: 'center',
     alignItems: 'center',
   },
+  vinylRing: {
+    position: 'absolute',
+    width: 200,
+    height: 200,
+    borderRadius: 100,
+    borderWidth: 1,
+    borderColor: '#1e1e24',
+  },
   vinylDisc: {
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: '#111114',
+    borderWidth: 1,
+    borderColor: '#2a2a30',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+  },
+  vinylDiscPlaying: {
+    borderColor: colors.accent,
+  },
+  grooveOuter: {
+    position: 'absolute',
+    width: 150,
+    height: 150,
+    borderRadius: 75,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  grooveInner: {
+    position: 'absolute',
+    width: 110,
+    height: 110,
+    borderRadius: 55,
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.03)',
+  },
+  vinylCenterLabel: {
     width: 76,
     height: 76,
     borderRadius: 38,
-    backgroundColor: '#0a0a0c',
-    borderWidth: 2,
-    borderColor: '#27272a',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  vinylSpinning: {
-    borderColor: colors.accent,
-  },
-  vinylCenterLabel: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: colors.accent,
+    backgroundColor: '#18181c',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.15)',
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
@@ -232,135 +386,160 @@ const styles = StyleSheet.create({
   },
   vinylFallback: {
     fontFamily: typography.fontMono,
-    fontSize: 8,
+    fontSize: 10,
     fontWeight: 'bold',
-    color: colors.bg,
+    color: colors.accent,
+    letterSpacing: 1,
   },
-  spindle: {
-    width: 4,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: colors.bg,
+  vinylSpindle: {
     position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#08080a',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.4)',
   },
-  playerMeta: {
-    flex: 1,
+  playerInfo: {
+    gap: 8,
   },
-  statusBadge: {
+  trackNowLabel: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 5,
-    marginBottom: 4,
+    gap: 6,
   },
-  pulseDot: {
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: colors.textDim,
+  pulse: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#4a4844',
   },
-  pulseDotActive: {
+  pulseActive: {
     backgroundColor: colors.accent,
   },
-  statusText: {
+  trackNowText: {
     fontFamily: typography.fontMono,
     fontSize: 9,
     color: colors.accent,
-    letterSpacing: 0.8,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   trackTitle: {
     fontFamily: typography.fontMono,
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: colors.text,
+    fontSize: 16,
+    fontWeight: '500',
+    color: '#e2ded6',
   },
   trackArtist: {
-    fontFamily: typography.fontMono,
-    fontSize: 11,
-    color: colors.textDim,
-    marginBottom: spacing.xs,
+    fontFamily: typography.fontSans,
+    fontSize: 12,
+    color: '#706c66',
+    fontWeight: '300',
+    marginBottom: 6,
   },
-  ctrlRow: {
+  controlsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    marginTop: 4,
+    justifyContent: 'center',
+    gap: 12,
+    marginVertical: 6,
   },
   ctrlBtn: {
-    width: 28,
-    height: 28,
-    borderRadius: 4,
-    backgroundColor: '#18181d',
+    width: 36,
+    height: 36,
+    borderRadius: 2,
+    backgroundColor: '#18181c',
     borderWidth: 1,
-    borderColor: '#27272a',
+    borderColor: '#2a2a30',
     justifyContent: 'center',
     alignItems: 'center',
   },
   ctrlPlay: {
-    backgroundColor: colors.accent,
+    width: 44,
+    height: 44,
     borderColor: colors.accent,
+    backgroundColor: 'rgba(196, 147, 104, 0.12)',
   },
-  streamLink: {
+  ctrlPlayActive: {
+    backgroundColor: colors.accent,
+  },
+  progressTrackWrap: {
+    paddingVertical: 6,
+  },
+  progressTrack: {
+    height: 2,
+    backgroundColor: '#1f1f24',
+    borderRadius: 1,
+    position: 'relative',
+    overflow: 'visible',
+  },
+  progressFill: {
+    height: '100%',
+    backgroundColor: colors.accent,
+    borderRadius: 1,
+  },
+  timeDisplay: {
     flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: spacing.md,
-    paddingTop: spacing.xs,
-    borderTopWidth: 1,
-    borderTopColor: '#27272a',
+    justifyContent: 'space-between',
   },
-  streamLinkText: {
+  timeText: {
     fontFamily: typography.fontMono,
-    fontSize: 9,
-    color: colors.accent,
+    fontSize: 10,
+    color: '#4a4844',
   },
-  crateList: {
-    gap: 6,
+  crateWrap: {
+    gap: 8,
   },
-  crateTitle: {
+  crateHeader: {
+    paddingBottom: 4,
+    borderBottomWidth: 1,
+    borderBottomColor: '#1e1e24',
+  },
+  crateHeaderTitle: {
     fontFamily: typography.fontMono,
-    fontSize: 11,
-    color: colors.textDim,
-    marginBottom: spacing.xs,
+    fontSize: 10,
+    color: '#706c66',
     letterSpacing: 1,
   },
   crateItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#121215',
+    backgroundColor: '#111114',
     borderWidth: 1,
-    borderColor: '#27272a',
-    padding: spacing.sm,
-    borderRadius: 4,
-    gap: spacing.sm,
+    borderColor: '#2a2a30',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 2,
+    gap: 12,
   },
   crateItemActive: {
+    backgroundColor: 'rgba(196, 147, 104, 0.1)',
     borderColor: colors.accent,
-    backgroundColor: '#18181d',
   },
   crateNum: {
     fontFamily: typography.fontMono,
-    fontSize: 11,
-    color: colors.textDim,
+    fontSize: 10,
+    color: '#4a4844',
   },
   crateNumActive: {
     color: colors.accent,
     fontWeight: 'bold',
   },
-  crateItemInfo: {
+  crateInfo: {
     flex: 1,
   },
-  crateItemTitle: {
+  crateTitle: {
     fontFamily: typography.fontMono,
     fontSize: 12,
-    color: colors.text,
+    color: '#b0aca4',
   },
-  crateItemTitleActive: {
+  crateTitleActive: {
     color: colors.accent,
     fontWeight: 'bold',
   },
-  crateItemArtist: {
-    fontFamily: typography.fontMono,
+  crateArtist: {
+    fontFamily: typography.fontSans,
     fontSize: 10,
-    color: colors.textDim,
+    color: '#706c66',
   },
 });

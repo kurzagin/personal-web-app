@@ -124,17 +124,6 @@ export const DossierView: React.FC<DossierViewProps> = ({ profile, endpoint }) =
           )}
         </View>
       </View>
-
-      {/* Node Diagnostics */}
-      <View style={[styles.card, { marginTop: spacing.md }]}>
-        <View style={[styles.corner, styles.cornerTL]} />
-        <View style={[styles.corner, styles.cornerBR]} />
-        <Text style={styles.diagTitle}>// RUNTIME TELEMETRY</Text>
-        <Text style={styles.diagText}>CONNECTED ENDPOINT: <Text style={styles.hl}>{endpoint}</Text></Text>
-        <Text style={styles.diagText}>DATABASE: <Text style={styles.hl}>Cloudflare D1 (SQL)</Text></Text>
-        <Text style={styles.diagText}>OBJECT STORAGE: <Text style={styles.hl}>Cloudflare R2</Text></Text>
-        <Text style={styles.diagText}>MOBILE CLIENT: <Text style={styles.hl}>Zero Creds Bundled</Text></Text>
-      </View>
     </View>
   );
 };
@@ -365,22 +354,5 @@ const styles = StyleSheet.create({
     fontSize: 9,
     color: colors.textDim,
     flex: 1,
-  },
-  diagTitle: {
-    fontFamily: typography.fontMono,
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: colors.accent,
-    marginBottom: spacing.xs,
-    letterSpacing: 1,
-  },
-  diagText: {
-    fontFamily: typography.fontMono,
-    fontSize: 10,
-    color: colors.textDim,
-    lineHeight: 18,
-  },
-  hl: {
-    color: colors.text,
   },
 });

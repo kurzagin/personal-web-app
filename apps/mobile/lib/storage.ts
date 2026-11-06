@@ -36,13 +36,22 @@ export async function loadStoredSession(): Promise<StoredSession> {
   }
 }
 
-export async function saveStoredSession(endpoint: string, token: string, username: string): Promise<void> {
+export async function saveStoredSession(endpoint: string, token?: string | null, username?: string | null): Promise<void> {
   try {
-    await Promise.all([
+    const promises: Promise<void>[] = [
       AsyncStorage.setItem(STORAGE_KEYS.ENDPOINT, endpoint.trim()),
-      AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token.trim()),
-      AsyncStorage.setItem(STORAGE_KEYS.USERNAME, username.trim()),
-    ]);
+    ];
+    if (token) {
+      promises.push(AsyncStorage.setItem(STORAGE_KEYS.TOKEN, token.trim()));
+    } else {
+      promises.push(AsyncStorage.removeItem(STORAGE_KEYS.TOKEN));
+    }
+    if (username) {
+      promises.push(AsyncStorage.setItem(STORAGE_KEYS.USERNAME, username.trim()));
+    } else {
+      promises.push(AsyncStorage.removeItem(STORAGE_KEYS.USERNAME));
+    }
+    await Promise.all(promises);
   } catch (err) {
     console.warn('Failed to save session to storage:', err);
   }

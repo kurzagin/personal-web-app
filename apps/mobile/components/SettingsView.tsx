@@ -1,0 +1,348 @@
+import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  TouchableOpacity,
+  TextInput,
+  ScrollView,
+  ActivityIndicator,
+} from 'react-native';
+import {
+  LogOut,
+  Check,
+} from 'lucide-react-native';
+import { colors, typography } from '@kurzagin/ui';
+import { loginOperator } from '../lib/api';
+
+interface SettingsViewProps {
+  endpoint: string;
+  onUpdateEndpoint: (newEndpoint: string) => void;
+  token: string | null;
+  operatorUser: string | null;
+  onLoginSuccess: (token: string, username: string) => void;
+  onLogout: () => void;
+}
+
+export const SettingsView: React.FC<SettingsViewProps> = ({
+  endpoint,
+  onUpdateEndpoint,
+  token,
+  operatorUser,
+  onLoginSuccess,
+  onLogout,
+}) => {
+  const [identifier, setIdentifier] = useState('');
+  const [password, setPassword] = useState('');
+  const [selectedSkin, setSelectedSkin] = useState<'default' | 'citlali' | 'furina'>('default');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [statusMsg, setStatusMsg] = useState('// status: awaiting credentials');
+
+  const handleOperatorLogin = async () => {
+    if (!identifier.trim() || !password.trim()) {
+      setError('Operator identifier and passphrase are required');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    setStatusMsg('// status: handshaking with auth server...');
+
+    try {
+      const res = await loginOperator(endpoint, identifier.trim(), password.trim());
+      if (res.success && res.token) {
+        setStatusMsg('// status: verified. loading settings...');
+        onLoginSuccess(res.token, res.username || identifier.trim());
+        setPassword('');
+        setIdentifier('');
+      } else {
+        setStatusMsg('// status: error — access denied');
+        setError(res.error || 'Access denied');
+      }
+    } catch (err: any) {
+      setStatusMsg('// status: network error during handshake');
+      setError(err?.message || 'Network error during handshake');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <ScrollView contentContainerStyle={styles.container}>
+      {/* 1:1 Page Header */}
+      <View style={styles.pageHeader}>
+        <Text style={styles.headerTitle}>
+          <Text style={{ color: colors.accent }}>preferences</Text> &amp; settings
+        </Text>
+        <Text style={styles.headerSub}>
+          <Text style={{ color: colors.accent }}>設定</Text> —{' '}
+          {token ? 'operator controls & content preferences' : 'operator login'}
+        </Text>
+      </View>
+
+      {token ? (
+        /* 1:1 Logged-in Operator Settings Card */
+        <View style={styles.bracketCard}>
+          {/* Site Skin Panel */}
+          <View style={styles.innerPanel}>
+            <Text style={styles.panelTag}>// SITE SKIN</Text>
+            <Text style={styles.panelDesc}>
+              Change the atmosphere of the entire site. This control is only available to the operator.
+            </Text>
+
+            <View style={styles.skinBtnRow}>
+              {(['default', 'citlali', 'furina'] as const).map((skin) => (
+                <TouchableOpacity
+                  key={skin}
+                  style={[styles.skinBtn, selectedSkin === skin && styles.skinBtnActive]}
+                  onPress={() => setSelectedSkin(skin)}
+                >
+                  <Text style={[styles.skinBtnText, selectedSkin === skin && styles.skinBtnTextActive]}>
+                    {skin}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <Text style={styles.themeStatus}>// current skin: {selectedSkin}</Text>
+          </View>
+
+          {/* Hero Banner Header */}
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.panelTag}>// HERO IMAGE</Text>
+            <Text style={styles.operatorUserTag}>@{operatorUser || 'operator'}</Text>
+          </View>
+
+          {/* Logout Action Row */}
+          <View style={styles.logoutRow}>
+            <TouchableOpacity style={styles.logoutBtn} onPress={onLogout}>
+              <LogOut size={12} color={colors.textDim} />
+              <Text style={styles.logoutText}>Logout</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      ) : (
+        /* 1:1 Logged-out Login Card */
+        <View style={styles.bracketCard}>
+          <View style={styles.cardHeaderRow}>
+            <Text style={styles.panelTag}>// LOGIN • CLOUDFLARE D1</Text>
+          </View>
+          <Text style={styles.loginCardTitle}>Log in to unlock settings</Text>
+
+          {error && <Text style={styles.errorText}>{error}</Text>}
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.inputLabel}>OPERATOR IDENTIFIER (EMAIL OR HANDLE)</Text>
+            <TextInput
+              style={styles.textInput}
+              value={identifier}
+              onChangeText={setIdentifier}
+              placeholder=""
+              placeholderTextColor={colors.textDim}
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.inputLabel}>SECURITY PASSPHRASE</Text>
+            <TextInput
+              style={styles.textInput}
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••••••"
+              placeholderTextColor={colors.textDim}
+              secureTextEntry
+              autoCapitalize="none"
+            />
+          </View>
+
+          <Text style={styles.statusText}>{statusMsg}</Text>
+
+          <TouchableOpacity
+            style={[styles.postBtn, loading && styles.btnDisabled]}
+            onPress={handleOperatorLogin}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#0a0a0c" size="small" />
+            ) : (
+              <Text style={styles.postBtnText}>VERIFY CREDENTIALS →</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+    </ScrollView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    padding: 16,
+    paddingTop: 32,
+    paddingBottom: 40,
+    maxWidth: 640,
+    alignSelf: 'center',
+    width: '100%',
+    gap: 16,
+  },
+  pageHeader: {
+    marginBottom: 8,
+  },
+  headerTitle: {
+    fontFamily: typography.fontMono,
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: colors.text,
+    letterSpacing: 1,
+  },
+  headerSub: {
+    fontFamily: typography.fontMono,
+    fontSize: 11,
+    color: colors.textDim,
+    marginTop: 4,
+  },
+  bracketCard: {
+    backgroundColor: '#121216',
+    borderWidth: 1,
+    borderColor: '#2a2a30',
+    borderRadius: 4,
+    padding: 24,
+    gap: 16,
+  },
+  innerPanel: {
+    backgroundColor: '#0a0a0c',
+    borderWidth: 1,
+    borderColor: '#1e1e24',
+    borderRadius: 4,
+    padding: 16,
+    gap: 10,
+  },
+  panelTag: {
+    fontFamily: typography.fontMono,
+    fontSize: 10,
+    color: colors.accent,
+    letterSpacing: 2,
+  },
+  panelDesc: {
+    fontFamily: typography.fontSans,
+    fontSize: 12,
+    color: '#706c66',
+    lineHeight: 16,
+  },
+  skinBtnRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  skinBtn: {
+    flex: 1,
+    backgroundColor: '#18181c',
+    borderWidth: 1,
+    borderColor: '#2a2a30',
+    paddingVertical: 8,
+    alignItems: 'center',
+    borderRadius: 2,
+  },
+  skinBtnActive: {
+    borderColor: colors.accent,
+    backgroundColor: 'rgba(196, 147, 104, 0.12)',
+  },
+  skinBtnText: {
+    fontFamily: typography.fontMono,
+    fontSize: 11,
+    color: '#b0aca4',
+  },
+  skinBtnTextActive: {
+    color: colors.accent,
+    fontWeight: 'bold',
+  },
+  themeStatus: {
+    fontFamily: typography.fontMono,
+    fontSize: 10,
+    color: '#4a4844',
+  },
+  cardHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  operatorUserTag: {
+    fontFamily: typography.fontMono,
+    fontSize: 10,
+    color: '#706c66',
+  },
+  loginCardTitle: {
+    fontFamily: typography.fontMono,
+    fontSize: 16,
+    color: '#e2ded6',
+    fontWeight: '400',
+    marginTop: -4,
+  },
+  fieldGroup: {
+    gap: 6,
+  },
+  inputLabel: {
+    fontFamily: typography.fontMono,
+    fontSize: 10,
+    color: '#4a4844',
+    letterSpacing: 1,
+  },
+  textInput: {
+    backgroundColor: '#0a0a0c',
+    borderWidth: 1,
+    borderColor: '#1e1e24',
+    borderRadius: 2,
+    color: '#e2ded6',
+    fontFamily: typography.fontMono,
+    fontSize: 13,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  statusText: {
+    fontFamily: typography.fontMono,
+    fontSize: 11,
+    color: '#4a4844',
+  },
+  errorText: {
+    fontFamily: typography.fontMono,
+    fontSize: 11,
+    color: '#e06c75',
+  },
+  postBtn: {
+    backgroundColor: colors.accent,
+    borderRadius: 2,
+    paddingVertical: 12,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  postBtnText: {
+    fontFamily: typography.fontMono,
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#0a0a0c',
+    letterSpacing: 1,
+  },
+  btnDisabled: {
+    opacity: 0.6,
+  },
+  logoutRow: {
+    borderTopWidth: 1,
+    borderTopColor: '#2a2a30',
+    paddingTop: 16,
+    alignItems: 'flex-end',
+  },
+  logoutBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#18181c',
+    borderWidth: 1,
+    borderColor: '#2a2a30',
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 2,
+  },
+  logoutText: {
+    fontFamily: typography.fontMono,
+    fontSize: 11,
+    color: '#b0aca4',
+  },
+});
