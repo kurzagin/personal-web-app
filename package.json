@@ -10,6 +10,7 @@
     "dev": "npm run --prefix apps/web dev",
     "preview": "npm run --prefix apps/web preview",
     "mobile:start": "npm run --prefix apps/mobile start",
+    "mobile:dev": "npm run --prefix apps/mobile start -- --localhost",
     "mobile:android": "npm run --prefix apps/mobile android",
     "create-account": "npm run --prefix apps/web create-account --",
     "change-password": "npm run --prefix apps/web change-password --",
