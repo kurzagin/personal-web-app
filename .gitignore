@@ -68,6 +68,11 @@ lerna-debug.log*
 
 # OS metadata
 .DS_Store
+
+# Cloudflare Wrangler local config & secrets
+wrangler.toml
+!wrangler.toml.example
+
 Thumbs.db
 *.pem
 
