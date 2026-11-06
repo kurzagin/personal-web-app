@@ -14,12 +14,11 @@ import {
 import {
   ArrowLeft,
   Disc3,
-  Music2,
   CheckCircle2,
-  Upload,
   Image as ImageIcon,
   X,
   FileAudio,
+  Radio,
 } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -219,11 +218,11 @@ export const AddTrackScreen: React.FC<AddTrackScreenProps> = ({
       {/* Top Header */}
       <View style={styles.topHeader}>
         <TouchableOpacity style={styles.backBtn} onPress={onBack} activeOpacity={0.7}>
-          <ArrowLeft size={18} color={colors.accent} />
+          <ArrowLeft size={16} color={colors.accent} />
           <Text style={styles.backBtnText}>BACK</Text>
         </TouchableOpacity>
         <Text style={styles.pageTitle}>PRESS VINYL TRACK</Text>
-        <View style={{ width: 50 }} />
+        <View style={{ width: 48 }} />
       </View>
 
       <ScrollView
@@ -231,6 +230,7 @@ export const AddTrackScreen: React.FC<AddTrackScreenProps> = ({
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
       >
+        {/* Step 1: Mode Switcher Console */}
         <View style={styles.card}>
           <View style={[styles.corner, styles.cornerTL]} />
           <View style={[styles.corner, styles.cornerBR]} />
@@ -240,7 +240,7 @@ export const AddTrackScreen: React.FC<AddTrackScreenProps> = ({
             <Text style={styles.sectionTitle}>VINYL PRESSING CONSOLE</Text>
           </View>
           <Text style={styles.sectionSubtitle}>
-            Master and press a new record into your turntable crates. Audio streams directly to Cloudflare R2 just like on the web.
+            Master and press a new record into your turntable crates. Direct R2 opus streaming and square sleeve transcoding.
           </Text>
 
           {error && (
@@ -249,12 +249,14 @@ export const AddTrackScreen: React.FC<AddTrackScreenProps> = ({
             </View>
           )}
 
-          {/* Mode Switcher */}
+          {/* Mode Pill Badges */}
           <View style={styles.modeRow}>
             <TouchableOpacity
               style={[styles.modeTab, !useDirectUrl && styles.modeTabActive]}
               onPress={() => setUseDirectUrl(false)}
+              activeOpacity={0.7}
             >
+              <Radio size={12} color={!useDirectUrl ? colors.accent : colors.textDim} />
               <Text style={[styles.modeTabText, !useDirectUrl && styles.modeTabTextActive]}>
                 FILE UPLOAD (R2)
               </Text>
@@ -262,146 +264,208 @@ export const AddTrackScreen: React.FC<AddTrackScreenProps> = ({
             <TouchableOpacity
               style={[styles.modeTab, useDirectUrl && styles.modeTabActive]}
               onPress={() => setUseDirectUrl(true)}
+              activeOpacity={0.7}
             >
+              <Radio size={12} color={useDirectUrl ? colors.accent : colors.textDim} />
               <Text style={[styles.modeTabText, useDirectUrl && styles.modeTabTextActive]}>
                 DIRECT URL
               </Text>
             </TouchableOpacity>
           </View>
+        </View>
 
-          {/* Track Details */}
-          <Text style={styles.inputLabel}>// TRACK TITLE *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={title}
-            onChangeText={setTitle}
-            placeholder="e.g. Plastic Love (Nightfly Re-Cut)"
-            placeholderTextColor={colors.textDim}
-          />
+        {/* Live Staged Record Preview (Anime staging card style) */}
+        <View style={styles.stagingCard}>
+          <View style={[styles.corner, styles.cornerTL]} />
+          <View style={[styles.corner, styles.cornerBR]} />
 
-          <Text style={[styles.inputLabel, { marginTop: spacing.md }]}>// ARTIST NAME *</Text>
-          <TextInput
-            style={styles.textInput}
-            value={artist}
-            onChangeText={setArtist}
-            placeholder="e.g. Mariya Takeuchi"
-            placeholderTextColor={colors.textDim}
-          />
-
-          <Text style={[styles.inputLabel, { marginTop: spacing.md }]}>// ALBUM / RELEASE (OPTIONAL)</Text>
-          <TextInput
-            style={styles.textInput}
-            value={album}
-            onChangeText={setAlbum}
-            placeholder="e.g. Variety (1984)"
-            placeholderTextColor={colors.textDim}
-          />
-
-          {/* Audio Upload vs Direct URL */}
-          {!useDirectUrl ? (
-            <>
-              <Text style={[styles.inputLabel, { marginTop: spacing.md }]}>
-                // AUDIO FILE (.OPUS / .MP3 / .OGG) *
+          <View style={styles.stagingHeader}>
+            <View style={styles.stagingBadgeRow}>
+              <Disc3 size={13} color={colors.accent} />
+              <Text style={styles.stagingTitle}>// STAGED RECORD</Text>
+            </View>
+            <View style={styles.readyBadge}>
+              <Text style={[styles.readyBadgeText, hasAudio && styles.readyBadgeTextActive]}>
+                {hasAudio ? 'AUDIO READY' : 'AWAITING AUDIO'}
               </Text>
-              {selectedAudio ? (
-                <View style={styles.fileSelectedBox}>
-                  <FileAudio size={20} color={colors.accent} />
-                  <View style={styles.fileInfo}>
-                    <Text style={styles.fileName} numberOfLines={1}>
-                      {selectedAudio.name}
-                    </Text>
-                    <Text style={styles.fileMeta}>
-                      {selectedAudio.size ? `${(selectedAudio.size / (1024 * 1024)).toFixed(2)} MB • ` : ''}
-                      READY TO STREAM TO R2
+            </View>
+          </View>
+
+          {/* Turntable Vinyl Center Row */}
+          <View style={styles.selectedRow}>
+            <View style={styles.vinylCenterWrapper}>
+              <View style={styles.vinylOuterRim}>
+                {selectedCoverUri || directCoverUrl ? (
+                  <Image
+                    source={{ uri: selectedCoverUri || directCoverUrl }}
+                    style={styles.vinylCoverImg}
+                  />
+                ) : (
+                  <View style={styles.vinylPlaceholder}>
+                    <Text style={styles.vinylFallbackText}>KRZ</Text>
+                  </View>
+                )}
+                <View style={styles.vinylSpindle} />
+              </View>
+            </View>
+
+            <View style={styles.selectedMeta}>
+              <Text style={styles.selectedName} numberOfLines={1}>
+                {title.trim() || 'Untitled Track'}
+              </Text>
+              <Text style={styles.selectedArtist} numberOfLines={1}>
+                {artist.trim() || 'Unknown Artist'}
+                {album.trim() ? ` — [${album.trim()}]` : ''}
+              </Text>
+              <View style={styles.metaBadgeRow}>
+                <View style={styles.formatPill}>
+                  <Text style={styles.formatPillText}>OPUS</Text>
+                </View>
+                <View style={styles.formatPill}>
+                  <Text style={styles.formatPillText}>{duration.trim() || '0:00'}</Text>
+                </View>
+                {selectedAudio?.size ? (
+                  <View style={styles.formatPill}>
+                    <Text style={styles.formatPillText}>
+                      {(selectedAudio.size / (1024 * 1024)).toFixed(1)} MB
                     </Text>
                   </View>
+                ) : null}
+              </View>
+            </View>
+          </View>
+
+          <View style={styles.formDivider} />
+
+          {/* File Picker Actions (Clean inline buttons instead of giant dropzones) */}
+          {!useDirectUrl ? (
+            <View style={styles.actionPickersRow}>
+              <TouchableOpacity
+                style={[styles.pickerBtn, selectedAudio && styles.pickerBtnFilled]}
+                onPress={handlePickAudio}
+                activeOpacity={0.7}
+              >
+                <FileAudio size={15} color={selectedAudio ? colors.accent : colors.textMuted} />
+                <View style={styles.pickerBtnContent}>
+                  <Text style={styles.pickerBtnTitle} numberOfLines={1}>
+                    {selectedAudio ? selectedAudio.name : 'SELECT OPUS AUDIO'}
+                  </Text>
+                  <Text style={styles.pickerBtnSub}>
+                    {selectedAudio ? 'Tap to change file' : 'Native Opus / MP3 stream'}
+                  </Text>
+                </View>
+                {selectedAudio && (
                   <TouchableOpacity
                     onPress={() => setSelectedAudio(null)}
-                    style={styles.removeFileBtn}
+                    style={styles.clearMiniBtn}
                   >
-                    <X size={14} color="#fff" />
+                    <X size={12} color={colors.textDim} />
                   </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.dropzone}
-                  onPress={handlePickAudio}
-                  activeOpacity={0.7}
-                >
-                  <Upload size={20} color={colors.accent} />
-                  <Text style={styles.dropzoneText}>SELECT AUDIO FILE</Text>
-                  <Text style={styles.dropzoneSub}>TAP TO BROWSE DEVICE AUDIO</Text>
-                </TouchableOpacity>
-              )}
+                )}
+              </TouchableOpacity>
 
-              {/* Cover Art Upload */}
-              <Text style={[styles.inputLabel, { marginTop: spacing.md }]}>
-                // COVER ARTWORK (OPTIONAL)
-              </Text>
-              {selectedCoverUri ? (
-                <View style={styles.coverSelectedBox}>
-                  <Image source={{ uri: selectedCoverUri }} style={styles.coverThumb} />
-                  <View style={styles.fileInfo}>
-                    <Text style={styles.fileName}>Cover Artwork Selected</Text>
-                    <Text style={styles.fileMeta}>Will convert to square AVIF</Text>
-                  </View>
+              <TouchableOpacity
+                style={[styles.pickerBtn, selectedCoverUri && styles.pickerBtnFilled]}
+                onPress={handlePickCover}
+                activeOpacity={0.7}
+              >
+                <ImageIcon size={15} color={selectedCoverUri ? colors.accent : colors.textMuted} />
+                <View style={styles.pickerBtnContent}>
+                  <Text style={styles.pickerBtnTitle}>
+                    {selectedCoverUri ? 'COVER SLEEVE SELECTED' : 'ALBUM ART (AVIF)'}
+                  </Text>
+                  <Text style={styles.pickerBtnSub}>
+                    {selectedCoverUri ? 'Tap to replace image' : '1:1 square sleeve art'}
+                  </Text>
+                </View>
+                {selectedCoverUri && (
                   <TouchableOpacity
                     onPress={() => setSelectedCoverUri(null)}
-                    style={styles.removeFileBtn}
+                    style={styles.clearMiniBtn}
                   >
-                    <X size={14} color="#fff" />
+                    <X size={12} color={colors.textDim} />
                   </TouchableOpacity>
-                </View>
-              ) : (
-                <TouchableOpacity
-                  style={styles.dropzone}
-                  onPress={handlePickCover}
-                  activeOpacity={0.7}
-                >
-                  <ImageIcon size={20} color={colors.accent} />
-                  <Text style={styles.dropzoneText}>SELECT COVER IMAGE</Text>
-                  <Text style={styles.dropzoneSub}>SQUARE ALBUM ART (JPG/PNG)</Text>
-                </TouchableOpacity>
-              )}
-            </>
+                )}
+              </TouchableOpacity>
+            </View>
           ) : (
-            <>
-              <Text style={[styles.inputLabel, { marginTop: spacing.md }]}>
-                // AUDIO STREAM URL (MP3/OPUS) *
-              </Text>
-              <TextInput
-                style={styles.textInput}
-                value={directAudioUrl}
-                onChangeText={setDirectAudioUrl}
-                placeholder="https://..."
-                placeholderTextColor={colors.textDim}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-
-              <Text style={[styles.inputLabel, { marginTop: spacing.md }]}>
-                // COVER ARTWORK URL (OPTIONAL)
-              </Text>
-              <TextInput
-                style={styles.textInput}
-                value={directCoverUrl}
-                onChangeText={setDirectCoverUrl}
-                placeholder="https://..."
-                placeholderTextColor={colors.textDim}
-                autoCapitalize="none"
-                autoCorrect={false}
-              />
-            </>
+            <View style={styles.directUrlInputs}>
+              <View style={styles.gridItem}>
+                <Text style={styles.inputLabel}>// AUDIO STREAM URL (OPUS/MP3) *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={directAudioUrl}
+                  onChangeText={setDirectAudioUrl}
+                  placeholder="https://...opus"
+                  placeholderTextColor={colors.textDim}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+              <View style={[styles.gridItem, { marginTop: 10 }]}>
+                <Text style={styles.inputLabel}>// COVER ARTWORK URL (OPTIONAL)</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={directCoverUrl}
+                  onChangeText={setDirectCoverUrl}
+                  placeholder="https://...jpg"
+                  placeholderTextColor={colors.textDim}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                />
+              </View>
+            </View>
           )}
 
-          <Text style={[styles.inputLabel, { marginTop: spacing.md }]}>// DURATION (MM:SS)</Text>
-          <TextInput
-            style={styles.textInput}
-            value={duration}
-            onChangeText={setDuration}
-            placeholder="3:45"
-            placeholderTextColor={colors.textDim}
-          />
+          <View style={styles.formDivider} />
+
+          {/* Form Metadata Fields with 2-column grid alignment */}
+          <View style={styles.fieldsGrid}>
+            <View style={styles.gridItem}>
+              <Text style={styles.inputLabel}>// TRACK TITLE *</Text>
+              <TextInput
+                style={styles.textInput}
+                value={title}
+                onChangeText={setTitle}
+                placeholder="e.g. Plastic Love (Nightfly)"
+                placeholderTextColor={colors.textDim}
+              />
+            </View>
+
+            <View style={styles.grid2}>
+              <View style={styles.gridItem}>
+                <Text style={styles.inputLabel}>// ARTIST NAME *</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={artist}
+                  onChangeText={setArtist}
+                  placeholder="e.g. Mariya Takeuchi"
+                  placeholderTextColor={colors.textDim}
+                />
+              </View>
+              <View style={styles.gridItem}>
+                <Text style={styles.inputLabel}>// ALBUM / RELEASE</Text>
+                <TextInput
+                  style={styles.textInput}
+                  value={album}
+                  onChangeText={setAlbum}
+                  placeholder="e.g. Variety"
+                  placeholderTextColor={colors.textDim}
+                />
+              </View>
+            </View>
+
+            <View style={styles.gridItem}>
+              <Text style={styles.inputLabel}>// DURATION (MM:SS)</Text>
+              <TextInput
+                style={styles.textInput}
+                value={duration}
+                onChangeText={setDuration}
+                placeholder="3:45"
+                placeholderTextColor={colors.textDim}
+              />
+            </View>
+          </View>
         </View>
 
         {/* Submit Button */}
@@ -480,6 +544,16 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 4,
     position: 'relative',
+    gap: 12,
+  },
+  stagingCard: {
+    backgroundColor: '#121216',
+    borderWidth: 1,
+    borderColor: colors.accent,
+    padding: 16,
+    borderRadius: 4,
+    position: 'relative',
+    gap: 12,
   },
   corner: {
     position: 'absolute',
@@ -517,15 +591,16 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textDim,
     lineHeight: 16,
-    marginBottom: 16,
   },
   modeRow: {
     flexDirection: 'row',
     gap: 8,
-    marginBottom: 14,
+    marginTop: 4,
   },
   modeTab: {
     flex: 1,
+    flexDirection: 'row',
+    gap: 6,
     paddingVertical: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -553,12 +628,186 @@ const styles = StyleSheet.create({
     borderLeftWidth: 3,
     borderLeftColor: colors.danger,
     padding: 10,
-    marginBottom: 12,
+    marginBottom: 8,
   },
   errorText: {
     fontFamily: typography.fontMono,
     color: colors.danger,
     fontSize: 11,
+  },
+  stagingHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  stagingBadgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  stagingTitle: {
+    fontFamily: typography.fontMono,
+    fontSize: 12,
+    color: colors.accent,
+    letterSpacing: 1,
+    fontWeight: 'bold',
+  },
+  readyBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 2,
+    backgroundColor: '#18181f',
+    borderWidth: 1,
+    borderColor: '#2e2e38',
+  },
+  readyBadgeText: {
+    fontFamily: typography.fontMono,
+    fontSize: 9,
+    color: colors.textDim,
+    letterSpacing: 0.5,
+  },
+  readyBadgeTextActive: {
+    color: colors.accent,
+    fontWeight: 'bold',
+  },
+  selectedRow: {
+    flexDirection: 'row',
+    gap: 14,
+    alignItems: 'center',
+  },
+  vinylCenterWrapper: {
+    width: 66,
+    height: 66,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vinylOuterRim: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#141418',
+    borderWidth: 2,
+    borderColor: '#2a2a32',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  vinylCoverImg: {
+    width: '100%',
+    height: '100%',
+  },
+  vinylPlaceholder: {
+    width: '100%',
+    height: '100%',
+    backgroundColor: '#1b1b22',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  vinylFallbackText: {
+    fontFamily: typography.fontMono,
+    fontSize: 12,
+    color: colors.textDim,
+    letterSpacing: 1,
+    fontWeight: 'bold',
+  },
+  vinylSpindle: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#0a0a0c',
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+  },
+  selectedMeta: {
+    flex: 1,
+    gap: 3,
+  },
+  selectedName: {
+    fontFamily: typography.fontMono,
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: colors.text,
+  },
+  selectedArtist: {
+    fontFamily: typography.fontMono,
+    fontSize: 11,
+    color: colors.textDim,
+  },
+  metaBadgeRow: {
+    flexDirection: 'row',
+    gap: 6,
+    marginTop: 4,
+  },
+  formatPill: {
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 2,
+    backgroundColor: 'rgba(224, 169, 109, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(224, 169, 109, 0.3)',
+  },
+  formatPillText: {
+    fontFamily: typography.fontMono,
+    fontSize: 9,
+    color: colors.accent,
+    letterSpacing: 0.5,
+  },
+  formDivider: {
+    height: 1,
+    backgroundColor: '#27272a',
+    marginVertical: 4,
+  },
+  actionPickersRow: {
+    gap: 8,
+  },
+  pickerBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    backgroundColor: '#0a0a0c',
+    borderWidth: 1,
+    borderColor: '#27272a',
+    borderRadius: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+  },
+  pickerBtnFilled: {
+    borderColor: colors.accent,
+    backgroundColor: 'rgba(224, 169, 109, 0.05)',
+  },
+  pickerBtnContent: {
+    flex: 1,
+  },
+  pickerBtnTitle: {
+    fontFamily: typography.fontMono,
+    fontSize: 11,
+    color: colors.text,
+    fontWeight: 'bold',
+  },
+  pickerBtnSub: {
+    fontFamily: typography.fontMono,
+    fontSize: 9,
+    color: colors.textDim,
+    marginTop: 1,
+  },
+  clearMiniBtn: {
+    padding: 6,
+    borderRadius: 3,
+    backgroundColor: '#1f1f26',
+  },
+  directUrlInputs: {
+    gap: 4,
+  },
+  fieldsGrid: {
+    gap: 12,
+  },
+  grid2: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  gridItem: {
+    flex: 1,
   },
   inputLabel: {
     fontFamily: typography.fontMono,
@@ -575,75 +824,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
     fontFamily: typography.fontMono,
-    fontSize: 13,
-    color: colors.text,
-  },
-  dropzone: {
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: '#3f3f46',
-    backgroundColor: '#0a0a0c',
-    borderRadius: 4,
-    padding: 18,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
-  dropzoneText: {
-    fontFamily: typography.fontMono,
-    fontSize: 11,
-    color: colors.accent,
-    fontWeight: 'bold',
-  },
-  dropzoneSub: {
-    fontFamily: typography.fontMono,
-    fontSize: 9,
-    color: colors.textDim,
-  },
-  fileSelectedBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0a0a0c',
-    borderWidth: 1,
-    borderColor: colors.accent,
-    borderRadius: 4,
-    padding: 10,
-    gap: 10,
-  },
-  coverSelectedBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0a0a0c',
-    borderWidth: 1,
-    borderColor: colors.accent,
-    borderRadius: 4,
-    padding: 8,
-    gap: 10,
-  },
-  coverThumb: {
-    width: 48,
-    height: 48,
-    borderRadius: 4,
-  },
-  fileInfo: {
-    flex: 1,
-    gap: 2,
-  },
-  fileName: {
-    fontFamily: typography.fontMono,
     fontSize: 12,
     color: colors.text,
-    fontWeight: 'bold',
-  },
-  fileMeta: {
-    fontFamily: typography.fontMono,
-    fontSize: 10,
-    color: colors.accent,
-  },
-  removeFileBtn: {
-    backgroundColor: '#27272a',
-    padding: 6,
-    borderRadius: 4,
   },
   submitBtn: {
     backgroundColor: colors.accent,
