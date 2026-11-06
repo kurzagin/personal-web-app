@@ -53,8 +53,9 @@ npm run mobile:start    # Start Expo Metro bundler
 npm run mobile:android  # Launch Android runner
 
 # Database & utility tasks
-npm run db:push
-npm run db:studio
+npm run d1:setup        # Apply schema to Cloudflare D1
+npm run create-account  # Create admin account
+
 ```
 
 ---

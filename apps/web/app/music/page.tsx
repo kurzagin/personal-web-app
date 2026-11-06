@@ -21,7 +21,7 @@ export default async function MusicPage() {
         .from(tracksTable)
         .orderBy(desc(tracksTable.created_at));
     } catch (err) {
-      console.error('Error fetching tracks from Neon DB:', err);
+      console.error('Error fetching tracks from D1 database:', err);
     }
   }
 

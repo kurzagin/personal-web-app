@@ -9,7 +9,7 @@ export async function GET() {
   await connection();
   const db = getDb();
   if (!db) {
-    return new Response(JSON.stringify({ tracks: [], message: 'DATABASE_URL not configured' }), {
+    return new Response(JSON.stringify({ tracks: [], message: 'Database not configured' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

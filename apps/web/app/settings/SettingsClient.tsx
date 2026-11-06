@@ -56,7 +56,7 @@ export default function SettingsClient({
           e.preventDefault();
           submitBtn.disabled = true;
           statusEl.style.color = 'var(--accent)';
-          statusEl.textContent = '// status: handshaking with neon auth...';
+          statusEl.textContent = '// status: handshaking with auth server...';
           try {
             const res = await fetch('/api/auth/login', {
               method: 'POST',

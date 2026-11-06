@@ -9,7 +9,7 @@ export async function GET(request: NextRequest) {
   await connection();
   const db = getDb();
   if (!db) {
-    return new Response(JSON.stringify({ anime: [], message: 'DATABASE_URL not configured' }), {
+    return new Response(JSON.stringify({ anime: [], message: 'Database not configured' }), {
       status: 200,
       headers: { 'Content-Type': 'application/json' },
     });

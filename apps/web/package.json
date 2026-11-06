@@ -12,18 +12,12 @@
     "lint": "eslint",
     "create-account": "node scripts/create-account.mjs",
     "change-password": "node scripts/change-password.mjs",
-    "db:push": "drizzle-kit push",
-    "db:generate": "drizzle-kit generate",
-    "db:studio": "drizzle-kit studio",
-    "db:setup": "node scripts/setup-db.mjs",
     "pwa:icons": "node scripts/generate-pwa-icons.mjs",
-    "r2:cors": "node scripts/setup-r2-cors.mjs",
-    "db:migrate-cdn": "node scripts/migrate-media-urls.mjs"
+    "r2:cors": "node scripts/setup-r2-cors.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1146.0",
     "@aws-sdk/s3-request-presigner": "^3.1146.0",
-    "@neondatabase/serverless": "^1.2.0",
     "drizzle-orm": "^0.45.3",
     "gray-matter": "^4.0.3",
     "lucide-react": "^1.51.0",

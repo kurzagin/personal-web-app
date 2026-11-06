@@ -107,7 +107,7 @@ export default async function HomePage({
         likedPostIds = rawLikes.map((l) => l.post_id);
       }
     } catch (err) {
-      console.error('Error fetching posts/comments/media from Neon with Drizzle:', err);
+      console.error('Error fetching posts/comments/media from D1 with Drizzle:', err);
     }
   }
 
