@@ -8,10 +8,11 @@ import {
   SafeAreaView,
   ActivityIndicator,
   RefreshControl,
+  ScrollView,
+  Image,
 } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { colors, typography, spacing } from '@kurzagin/ui';
-import type { PostItem } from '@kurzagin/shared';
 import {
   loadStoredSession,
   saveStoredSession,
@@ -21,16 +22,23 @@ import {
 import {
   verifyOperatorSession,
   fetchFeedPosts,
+  fetchProfile,
+  fetchTracks,
   fetchGuestbook,
   postGuestbookReply,
+  type WebDbPost,
+  type PostMediaItem,
   type GuestbookEntry,
+  type WebProfile,
+  type DbTrack,
 } from './lib/api';
 import { AuthGate } from './components/AuthGate';
 import { PostCard } from './components/PostCard';
 import { GuestbookCard } from './components/GuestbookCard';
+import { DossierView } from './components/DossierView';
+import { MusicView } from './components/MusicView';
+import { BottomNav, type TabKey } from './components/BottomNav';
 import { CreatePostModal } from './components/CreatePostModal';
-
-type ActiveTab = 'feed' | 'guestbook' | 'dossier';
 
 export default function App() {
   const [initializing, setInitializing] = useState(true);
@@ -38,10 +46,14 @@ export default function App() {
   const [token, setToken] = useState<string | null>(null);
   const [operatorUser, setOperatorUser] = useState<string | null>(null);
 
-  const [activeTab, setActiveTab] = useState<ActiveTab>('feed');
+  const [activeTab, setActiveTab] = useState<TabKey>('home');
   const [feedFilter, setFeedFilter] = useState<string>('all');
-  const [posts, setPosts] = useState<PostItem[]>([]);
+  const [posts, setPosts] = useState<WebDbPost[]>([]);
+  const [mediaByPost, setMediaByPost] = useState<Record<string, PostMediaItem[]>>({});
+  const [profile, setProfile] = useState<WebProfile | null>(null);
+  const [tracks, setTracks] = useState<DbTrack[]>([]);
   const [guestbookEntries, setGuestbookEntries] = useState<GuestbookEntry[]>([]);
+
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -69,21 +81,24 @@ export default function App() {
     })();
   }, []);
 
-  // Fetch data on tab change or auth change
   const loadData = async (isRefresh = false) => {
     if (!token) return;
     if (isRefresh) setRefreshing(true);
     else setLoading(true);
 
     try {
-      if (activeTab === 'feed') {
-        const filterArg = feedFilter === 'all' ? undefined : feedFilter;
-        const fetched = await fetchFeedPosts(endpoint, filterArg);
-        setPosts(fetched);
-      } else if (activeTab === 'guestbook') {
-        const fetched = await fetchGuestbook(endpoint);
-        setGuestbookEntries(fetched);
-      }
+      const [feedData, profileData, tracksData, guestbookData] = await Promise.all([
+        fetchFeedPosts(endpoint, feedFilter),
+        fetchProfile(endpoint),
+        fetchTracks(endpoint),
+        fetchGuestbook(endpoint),
+      ]);
+
+      setPosts(feedData.posts);
+      setMediaByPost(feedData.mediaByPost);
+      setProfile(profileData);
+      setTracks(tracksData);
+      setGuestbookEntries(guestbookData);
     } catch (err) {
       console.warn('Data load error:', err);
     } finally {
@@ -96,7 +111,7 @@ export default function App() {
     if (token) {
       loadData();
     }
-  }, [token, activeTab, feedFilter]);
+  }, [token, feedFilter]);
 
   const handleAuthenticated = async (
     newToken: string,
@@ -121,8 +136,8 @@ export default function App() {
     if (!token) return false;
     const res = await postGuestbookReply(endpoint, token, entryId, replyText);
     if (res.success) {
-      // Refresh guestbook list
-      loadData();
+      const refreshed = await fetchGuestbook(endpoint);
+      setGuestbookEntries(refreshed);
       return true;
     }
     return false;
@@ -155,135 +170,43 @@ export default function App() {
     <SafeAreaView style={styles.safeArea}>
       <StatusBar style="light" />
 
-      {/* Top Cyberpunk Status Header */}
-      <View style={styles.header}>
-        <View style={styles.brandGroup}>
-          <Text style={styles.brandTitle}>kurzagin</Text>
-          <View style={styles.statusRow}>
-            <View style={styles.onlineDot} />
-            <Text style={styles.statusText}>
-              OPERATOR: {operatorUser?.toUpperCase()}
-            </Text>
-          </View>
-        </View>
+      {/* 1:1 Top Brand Navigation Bar */}
+      <View style={styles.topNav}>
+        <TouchableOpacity style={styles.navBrand} onPress={() => setActiveTab('home')}>
+          <View style={styles.brandDot} />
+          <Text style={styles.brandText}>kurzagin</Text>
+          <Text style={styles.brandJp}>クルザギン</Text>
+        </TouchableOpacity>
 
-        <View style={styles.headerActions}>
+        <View style={styles.headerRight}>
           <TouchableOpacity
             style={styles.transmitBtn}
             onPress={() => setShowCreateModal(true)}
             activeOpacity={0.8}
           >
-            <Text style={styles.transmitBtnText}>+ TRANSMIT</Text>
+            <Text style={styles.transmitText}>+ TRANSMIT</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={styles.disconnectBtn}
+            style={styles.exitBtn}
             onPress={handleDisconnect}
             activeOpacity={0.8}
           >
-            <Text style={styles.disconnectBtnText}>EXIT</Text>
+            <Text style={styles.exitText}>LOGOUT</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      {/* Navigation Tabs (1:1 Web Architecture) */}
-      <View style={styles.navBar}>
-        <TouchableOpacity
-          style={[styles.navTab, activeTab === 'feed' && styles.navTabActive]}
-          onPress={() => setActiveTab('feed')}
-        >
-          <Text
-            style={[
-              styles.navTabText,
-              activeTab === 'feed' && styles.navTabTextActive,
-            ]}
-          >
-            // FEED
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.navTab,
-            activeTab === 'guestbook' && styles.navTabActive,
-          ]}
-          onPress={() => setActiveTab('guestbook')}
-        >
-          <Text
-            style={[
-              styles.navTabText,
-              activeTab === 'guestbook' && styles.navTabTextActive,
-            ]}
-          >
-            // MESSAGES
-          </Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[
-            styles.navTab,
-            activeTab === 'dossier' && styles.navTabActive,
-          ]}
-          onPress={() => setActiveTab('dossier')}
-        >
-          <Text
-            style={[
-              styles.navTabText,
-              activeTab === 'dossier' && styles.navTabTextActive,
-            ]}
-          >
-            // DOSSIER
-          </Text>
-        </TouchableOpacity>
-      </View>
-
-      {/* Sub-filter Bar (For Feed) */}
-      {activeTab === 'feed' && (
-        <View style={styles.filterBar}>
-          {(['all', 'media', 'anime'] as const).map((cat) => (
-            <TouchableOpacity
-              key={cat}
-              style={[
-                styles.filterChip,
-                feedFilter === cat && styles.filterChipActive,
-              ]}
-              onPress={() => setFeedFilter(cat)}
-            >
-              <Text
-                style={[
-                  styles.filterChipText,
-                  feedFilter === cat && styles.filterChipTextActive,
-                ]}
-              >
-                #{cat.toUpperCase()}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-      )}
-
-      {/* Main Content Area */}
-      <View style={styles.mainContainer}>
+      {/* Main Tab Views */}
+      <View style={styles.mainContent}>
         {loading && !refreshing ? (
           <View style={styles.centerContainer}>
             <ActivityIndicator size="small" color={colors.accent} />
-            <Text style={styles.fetchingText}>PULLING TELEMETRY...</Text>
+            <Text style={styles.fetchingText}>SYNCHRONIZING TERMINAL...</Text>
           </View>
-        ) : activeTab === 'feed' ? (
-          <FlatList
-            data={posts}
-            keyExtractor={(item) => item.id}
-            renderItem={({ item }) => (
-              <PostCard
-                authorName={item.author_name}
-                authorHandle={item.author_handle}
-                content={item.content}
-                category={item.category}
-                createdAt={item.created_at}
-                likesCount={item.likes_count}
-              />
-            )}
-            contentContainerStyle={styles.listContent}
+        ) : activeTab === 'home' || activeTab === 'blog' ? (
+          <ScrollView
+            contentContainerStyle={styles.scrollList}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -291,26 +214,150 @@ export default function App() {
                 tintColor={colors.accent}
               />
             }
-            ListEmptyComponent={
+          >
+            {/* 1:1 Web Hero Section (Shown on Home Tab) */}
+            {activeTab === 'home' && (
+              <View style={styles.heroSection}>
+                {profile?.banner_url ? (
+                  <View style={styles.heroBannerWrap}>
+                    <Image source={{ uri: profile.banner_url }} style={styles.heroBannerImg} />
+                    <View style={styles.heroGridOverlay} />
+                    <View style={[styles.corner, styles.cornerTL]} />
+                    <View style={[styles.corner, styles.cornerTR]} />
+                    <View style={[styles.corner, styles.cornerBL]} />
+                    <View style={[styles.corner, styles.cornerBR]} />
+                    <Text style={styles.heroCoordTop}>35.6614° N, 139.6681° E</Text>
+                    <Text style={styles.heroCoordBottom}>v0.1.3 — last updated 10.02</Text>
+                  </View>
+                ) : null}
+
+                <View style={styles.heroContent}>
+                  <Text style={styles.heroLabel}>PERSONAL LOG</Text>
+                  <Text style={styles.heroTitle}>
+                    <Text style={{ color: colors.accent }}>kurzagin</Text>{'\n'}back alleys
+                  </Text>
+                  <Text style={styles.heroJpSub}>クルザギンの裏通り</Text>
+                  <Text style={styles.heroDesc}>
+                    A quiet corner of the web — vinyl crackle, late-night anime, half-finished games, and whatever else washes up. Somewhere between a journal and a junkyard.
+                  </Text>
+                </View>
+
+                <View style={styles.divider} />
+              </View>
+            )}
+
+            {/* 1:1 Blog Section Header */}
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>blog</Text>
+              <Text style={styles.jpLabel}>日誌</Text>
+              <View style={styles.line} />
+              <Text style={styles.operatorTag}>// @{operatorUser}</Text>
+            </View>
+
+            {/* In-place Transmission Trigger */}
+            <TouchableOpacity
+              style={styles.composerBar}
+              onPress={() => setShowCreateModal(true)}
+              activeOpacity={0.85}
+            >
+              <View style={[styles.corner, styles.cornerTL]} />
+              <View style={[styles.corner, styles.cornerBR]} />
+              <Text style={styles.composerTag}>// TRANSMISSION CONSOLE</Text>
+              <Text style={styles.composerPlaceholder}>
+                broadcast new transmission to kurzagin... (supports #tags)
+              </Text>
+            </TouchableOpacity>
+
+            {/* 1:1 Feed Category Filter Bar */}
+            <View style={styles.filterBar}>
+              <TouchableOpacity
+                style={[styles.filterBtn, feedFilter === 'all' && styles.filterBtnActive]}
+                onPress={() => setFeedFilter('all')}
+              >
+                <Text style={[styles.filterBtnText, feedFilter === 'all' && styles.filterBtnTextActive]}>
+                  // ALL LOGS
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.filterBtn, feedFilter === 'media' && styles.filterBtnActive]}
+                onPress={() => setFeedFilter('media')}
+              >
+                <Text style={[styles.filterBtnText, feedFilter === 'media' && styles.filterBtnTextActive]}>
+                  // MEDIA ONLY (メディア)
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.filterBtn, feedFilter === 'anime' && styles.filterBtnActive]}
+                onPress={() => setFeedFilter('anime')}
+              >
+                <Text style={[styles.filterBtnText, feedFilter === 'anime' && styles.filterBtnTextActive]}>
+                  // ANIME LOGS (アニメ)
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            {/* Posts Feed Stream */}
+            {posts.length === 0 ? (
               <View style={styles.emptyContainer}>
                 <Text style={styles.emptyTitle}>NO TRANSMISSIONS LOGGED</Text>
                 <Text style={styles.emptySubtitle}>
-                  Feed is currently clear or matches no active filter.
+                  The back alleys are quiet tonight. Awaiting operator broadcast.
                 </Text>
               </View>
+            ) : (
+              posts.map((post) => (
+                <PostCard
+                  key={post.id}
+                  id={post.id}
+                  authorName={post.author_name}
+                  authorHandle={post.author_handle}
+                  avatarUrl={profile?.avatar_url}
+                  content={post.content}
+                  category={post.category}
+                  createdAt={post.created_at}
+                  likesCount={post.likes_count}
+                  media={mediaByPost[post.id] || []}
+                  animeMeta={post.anime_meta}
+                />
+              ))
+            )}
+
+            {/* Operator Dossier Preview on Home Tab */}
+            {activeTab === 'home' && (
+              <>
+                <View style={styles.divider} />
+                <View style={styles.sectionHead}>
+                  <Text style={styles.sectionTitle}>operator</Text>
+                  <Text style={styles.jpLabel}>人物</Text>
+                  <View style={styles.line} />
+                </View>
+                <DossierView profile={profile} endpoint={endpoint} />
+              </>
+            )}
+          </ScrollView>
+        ) : activeTab === 'music' ? (
+          <ScrollView
+            contentContainerStyle={styles.scrollList}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => loadData(true)}
+                tintColor={colors.accent}
+              />
             }
-          />
-        ) : activeTab === 'guestbook' ? (
+          >
+            <MusicView tracks={tracks} endpoint={endpoint} />
+          </ScrollView>
+        ) : activeTab === 'messages' ? (
           <FlatList
             data={guestbookEntries}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
-              <GuestbookCard
-                entry={item}
-                onSendReply={handleSendGuestbookReply}
-              />
+              <GuestbookCard entry={item} onSendReply={handleSendGuestbookReply} />
             )}
-            contentContainerStyle={styles.listContent}
+            contentContainerStyle={styles.scrollList}
             refreshControl={
               <RefreshControl
                 refreshing={refreshing}
@@ -318,40 +365,46 @@ export default function App() {
                 tintColor={colors.accent}
               />
             }
+            ListHeaderComponent={
+              <View style={styles.sectionHead}>
+                <Text style={styles.sectionTitle}>guestbook</Text>
+                <Text style={styles.jpLabel}>伝言板</Text>
+                <View style={styles.line} />
+                <Text style={styles.operatorTag}>// {guestbookEntries.length} MESSAGES</Text>
+              </View>
+            }
             ListEmptyComponent={
               <View style={styles.emptyContainer}>
-                <Text style={styles.emptyTitle}>INBOX EMPTY</Text>
-                <Text style={styles.emptySubtitle}>
-                  No visitor dispatches found in the guestbook.
-                </Text>
+                <Text style={styles.emptyTitle}>NO MESSAGES</Text>
+                <Text style={styles.emptySubtitle}>Guestbook entries will appear here.</Text>
               </View>
             }
           />
         ) : (
-          <View style={styles.dossierContainer}>
-            <View style={styles.dossierCard}>
-              <Text style={styles.dossierTitle}>NODE ARCHITECTURE</Text>
-              <Text style={styles.dossierRow}>
-                ENDPOINT: <Text style={styles.highlight}>{endpoint}</Text>
-              </Text>
-              <Text style={styles.dossierRow}>
-                DATABASE: <Text style={styles.highlight}>Cloudflare D1 SQL</Text>
-              </Text>
-              <Text style={styles.dossierRow}>
-                STORAGE: <Text style={styles.highlight}>Cloudflare R2</Text>
-              </Text>
-              <Text style={styles.dossierRow}>
-                CLIENT ACCESS: <Text style={styles.highlight}>Zero Creds Bundled</Text>
-              </Text>
-              <Text style={styles.dossierRow}>
-                STATUS: <Text style={styles.highlight}>Secured &amp; Synced</Text>
-              </Text>
+          <ScrollView
+            contentContainerStyle={styles.scrollList}
+            refreshControl={
+              <RefreshControl
+                refreshing={refreshing}
+                onRefresh={() => loadData(true)}
+                tintColor={colors.accent}
+              />
+            }
+          >
+            <View style={styles.sectionHead}>
+              <Text style={styles.sectionTitle}>operator dossier</Text>
+              <Text style={styles.jpLabel}>人物</Text>
+              <View style={styles.line} />
             </View>
-          </View>
+            <DossierView profile={profile} endpoint={endpoint} />
+          </ScrollView>
         )}
       </View>
 
-      {/* Modal for Transmitting New Post */}
+      {/* 1:1 Cyberpunk Bottom Navigation Bar */}
+      <BottomNav activeTab={activeTab} onSelectTab={setActiveTab} />
+
+      {/* Composer Modal */}
       <CreatePostModal
         visible={showCreateModal}
         endpoint={endpoint}
@@ -366,11 +419,11 @@ export default function App() {
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: '#0a0a0c',
   },
   loadingScreen: {
     flex: 1,
-    backgroundColor: colors.bg,
+    backgroundColor: '#0a0a0c',
     justifyContent: 'center',
     alignItems: 'center',
     gap: spacing.md,
@@ -381,133 +434,69 @@ const styles = StyleSheet.create({
     color: colors.accent,
     letterSpacing: 1.2,
   },
-  header: {
+  topNav: {
+    height: 48,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.md,
+    backgroundColor: '#0a0a0c',
     borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.bgCard,
+    borderBottomColor: '#27272a',
   },
-  brandGroup: {
-    gap: 2,
-  },
-  brandTitle: {
-    fontFamily: typography.fontMono,
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: colors.text,
-    letterSpacing: 1.5,
-  },
-  statusRow: {
+  navBrand: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  onlineDot: {
+  brandDot: {
     width: 6,
     height: 6,
     borderRadius: 3,
     backgroundColor: colors.accent,
   },
-  statusText: {
+  brandText: {
+    fontFamily: typography.fontMono,
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: colors.text,
+    letterSpacing: 1,
+  },
+  brandJp: {
     fontFamily: typography.fontMono,
     fontSize: 10,
-    color: colors.accent,
-    letterSpacing: 0.8,
+    color: colors.textDim,
   },
-  headerActions: {
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.sm,
+    gap: 8,
   },
   transmitBtn: {
     backgroundColor: colors.accent,
-    paddingHorizontal: spacing.md,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 3,
   },
-  transmitBtnText: {
+  transmitText: {
     fontFamily: typography.fontMono,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: 'bold',
-    color: colors.bg,
-    letterSpacing: 1,
+    color: '#0a0a0c',
   },
-  disconnectBtn: {
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: spacing.sm + 2,
-    paddingVertical: spacing.xs + 2,
-    borderRadius: 4,
-  },
-  disconnectBtnText: {
-    fontFamily: typography.fontMono,
-    fontSize: 11,
-    color: colors.textDim,
-  },
-  navBar: {
-    flexDirection: 'row',
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-    backgroundColor: colors.bg,
-  },
-  navTab: {
-    flex: 1,
-    paddingVertical: spacing.sm + 4,
-    alignItems: 'center',
-    borderBottomWidth: 2,
-    borderBottomColor: 'transparent',
-  },
-  navTabActive: {
-    borderBottomColor: colors.accent,
-    backgroundColor: colors.bgCardHover,
-  },
-  navTabText: {
-    fontFamily: typography.fontMono,
-    fontSize: 11,
-    color: colors.textDim,
-    letterSpacing: 0.8,
-  },
-  navTabTextActive: {
-    color: colors.accent,
-    fontWeight: 'bold',
-  },
-  filterBar: {
-    flexDirection: 'row',
-    gap: spacing.xs,
-    paddingHorizontal: spacing.lg,
-    paddingVertical: spacing.sm,
-    backgroundColor: colors.bgCard,
-    borderBottomWidth: 1,
-    borderBottomColor: colors.border,
-  },
-  filterChip: {
-    paddingVertical: 3,
+  exitBtn: {
     paddingHorizontal: 8,
-    borderRadius: 4,
-    borderWidth: 1,
-    borderColor: colors.border,
+    paddingVertical: 4,
   },
-  filterChipActive: {
-    backgroundColor: colors.accentMuted,
-    borderColor: colors.accent,
-  },
-  filterChipText: {
+  exitText: {
     fontFamily: typography.fontMono,
     fontSize: 10,
     color: colors.textDim,
   },
-  filterChipTextActive: {
-    color: colors.accent,
-    fontWeight: 'bold',
-  },
-  mainContainer: {
+  mainContent: {
     flex: 1,
   },
-  listContent: {
+  scrollList: {
     padding: spacing.md,
     paddingBottom: spacing.xxl,
   },
@@ -522,49 +511,208 @@ const styles = StyleSheet.create({
     fontSize: 11,
     color: colors.textDim,
   },
+  heroSection: {
+    marginBottom: spacing.md,
+  },
+  heroBannerWrap: {
+    height: 150,
+    borderRadius: 6,
+    overflow: 'hidden',
+    position: 'relative',
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272a',
+    marginBottom: spacing.md,
+  },
+  heroBannerImg: {
+    width: '100%',
+    height: '100%',
+  },
+  heroGridOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(10, 10, 12, 0.45)',
+  },
+  heroCoordTop: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    fontFamily: typography.fontMono,
+    fontSize: 9,
+    color: colors.textDim,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  heroCoordBottom: {
+    position: 'absolute',
+    bottom: 8,
+    right: 8,
+    fontFamily: typography.fontMono,
+    fontSize: 9,
+    color: colors.textDim,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+  },
+  heroContent: {
+    paddingVertical: spacing.xs,
+  },
+  heroLabel: {
+    fontFamily: typography.fontMono,
+    fontSize: 10,
+    color: colors.accent,
+    letterSpacing: 1.5,
+    marginBottom: 4,
+  },
+  heroTitle: {
+    fontFamily: typography.fontMono,
+    fontSize: 22,
+    fontWeight: 'bold',
+    color: colors.text,
+    lineHeight: 28,
+  },
+  heroJpSub: {
+    fontFamily: typography.fontMono,
+    fontSize: 11,
+    color: colors.textDim,
+    marginTop: 2,
+    marginBottom: spacing.sm,
+  },
+  heroDesc: {
+    fontFamily: typography.fontSans,
+    fontSize: 12,
+    color: colors.textMuted,
+    lineHeight: 18,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#27272a',
+    marginVertical: spacing.lg,
+  },
+  sectionHead: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: 8,
+    marginBottom: spacing.md,
+  },
+  sectionTitle: {
+    fontFamily: typography.fontMono,
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: colors.text,
+    letterSpacing: 1,
+  },
+  jpLabel: {
+    fontFamily: typography.fontMono,
+    fontSize: 11,
+    color: colors.textDim,
+  },
+  line: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#27272a',
+  },
+  operatorTag: {
+    fontFamily: typography.fontMono,
+    fontSize: 10,
+    color: colors.accent,
+  },
+  composerBar: {
+    backgroundColor: '#121215',
+    borderWidth: 1,
+    borderColor: '#27272a',
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    position: 'relative',
+  },
+  composerTag: {
+    fontFamily: typography.fontMono,
+    fontSize: 10,
+    color: colors.accent,
+    marginBottom: 4,
+    letterSpacing: 1,
+  },
+  composerPlaceholder: {
+    fontFamily: typography.fontSans,
+    fontSize: 12,
+    color: colors.textDim,
+  },
+  filterBar: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: spacing.md,
+  },
+  filterBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 3,
+    borderWidth: 1,
+    borderColor: '#27272a',
+    backgroundColor: '#0a0a0c',
+  },
+  filterBtnActive: {
+    borderColor: colors.accent,
+    backgroundColor: 'rgba(224, 169, 109, 0.12)',
+  },
+  filterBtnText: {
+    fontFamily: typography.fontMono,
+    fontSize: 10,
+    color: colors.textDim,
+  },
+  filterBtnTextActive: {
+    color: colors.accent,
+    fontWeight: 'bold',
+  },
   emptyContainer: {
-    paddingVertical: spacing.xxl * 2,
+    paddingVertical: spacing.xl,
     alignItems: 'center',
     gap: spacing.xs,
   },
   emptyTitle: {
     fontFamily: typography.fontMono,
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: 'bold',
     color: colors.textMuted,
   },
   emptySubtitle: {
     fontFamily: typography.fontSans,
-    fontSize: 12,
+    fontSize: 11,
     color: colors.textDim,
+    textAlign: 'center',
   },
-  dossierContainer: {
-    padding: spacing.lg,
+  corner: {
+    position: 'absolute',
+    width: 8,
+    height: 8,
+    borderColor: colors.accent,
   },
-  dossierCard: {
-    backgroundColor: colors.bgCard,
-    borderWidth: 1,
-    borderColor: colors.border,
-    borderRadius: 8,
-    padding: spacing.lg,
-    gap: spacing.sm,
+  cornerTL: {
+    top: -1,
+    left: -1,
+    borderTopWidth: 1.5,
+    borderLeftWidth: 1.5,
   },
-  dossierTitle: {
-    fontFamily: typography.fontMono,
-    fontSize: 13,
-    fontWeight: 'bold',
-    color: colors.accent,
-    letterSpacing: 1.2,
-    marginBottom: spacing.xs,
+  cornerTR: {
+    top: -1,
+    right: -1,
+    borderTopWidth: 1.5,
+    borderRightWidth: 1.5,
   },
-  dossierRow: {
-    fontFamily: typography.fontMono,
-    fontSize: 12,
-    color: colors.textMuted,
-    lineHeight: 20,
+  cornerBL: {
+    bottom: -1,
+    left: -1,
+    borderBottomWidth: 1.5,
+    borderLeftWidth: 1.5,
   },
-  highlight: {
-    color: colors.text,
-    fontWeight: 'bold',
+  cornerBR: {
+    bottom: -1,
+    right: -1,
+    borderBottomWidth: 1.5,
+    borderRightWidth: 1.5,
   },
 });

@@ -1,5 +1,25 @@
 import type { PostItem } from '@kurzagin/shared';
 
+export interface PostMediaItem {
+  id: string;
+  post_id: string;
+  url: string;
+  alt_text?: string | null;
+  mime_type?: string | null;
+}
+
+export interface WebDbPost extends Omit<PostItem, 'anime_meta' | 'media'> {
+  media?: PostMediaItem[];
+  anime_meta?: {
+    title?: string;
+    cover_url?: string;
+    score?: number;
+    episode?: number | null;
+    review_type?: string | null;
+    has_spoilers?: boolean;
+  } | null;
+}
+
 export interface GuestbookEntry {
   id: string;
   author_name: string;
@@ -10,19 +30,40 @@ export interface GuestbookEntry {
   created_at: string;
 }
 
+export interface ProjectEntry {
+  title: string;
+  description: string;
+  url?: string;
+  badge?: string;
+}
+
+export interface SocialLink {
+  platform: string;
+  url: string;
+}
+
 export interface WebProfile {
   name: string;
   handle: string;
-  bio: string;
+  headline?: string;
+  bio?: string;
   avatar_url?: string;
-  status?: string;
+  banner_url?: string;
+  status_message?: string;
   location?: string;
-  socials?: Record<string, string>;
+  contact_email?: string;
+  social_links?: SocialLink[];
+  currently_building?: ProjectEntry[];
 }
 
-export interface ApiClient {
-  endpoint: string;
-  token: string | null;
+export interface DbTrack {
+  id: string;
+  title: string;
+  artist: string;
+  album?: string | null;
+  audio_url: string;
+  cover_url?: string | null;
+  duration?: number | null;
 }
 
 export async function verifyOperatorSession(endpoint: string, token: string): Promise<{ valid: boolean; username?: string }> {
@@ -44,13 +85,39 @@ export async function verifyOperatorSession(endpoint: string, token: string): Pr
   }
 }
 
-export async function fetchFeedPosts(endpoint: string, filter?: string): Promise<PostItem[]> {
+export async function fetchFeedPosts(endpoint: string, filter?: string): Promise<{ posts: WebDbPost[]; mediaByPost: Record<string, PostMediaItem[]> }> {
   const formatted = endpoint.replace(/\/$/, '');
-  const url = filter ? `${formatted}/api/posts?filter=${encodeURIComponent(filter)}` : `${formatted}/api/posts`;
+  const url = filter && filter !== 'all' ? `${formatted}/api/posts?filter=${encodeURIComponent(filter)}` : `${formatted}/api/posts`;
   const res = await fetch(url);
   if (!res.ok) throw new Error(`Feed fetch failed: ${res.status}`);
   const data = await res.json();
-  return data.posts || [];
+  const posts = data.posts || [];
+  const mediaByPost = data.mediaByPost || {};
+  return { posts, mediaByPost };
+}
+
+export async function fetchProfile(endpoint: string): Promise<WebProfile | null> {
+  try {
+    const formatted = endpoint.replace(/\/$/, '');
+    const res = await fetch(`${formatted}/api/profile`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.profile || null;
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchTracks(endpoint: string): Promise<DbTrack[]> {
+  try {
+    const formatted = endpoint.replace(/\/$/, '');
+    const res = await fetch(`${formatted}/api/tracks`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.tracks || [];
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchGuestbook(endpoint: string): Promise<GuestbookEntry[]> {
