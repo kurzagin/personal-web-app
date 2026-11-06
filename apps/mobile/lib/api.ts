@@ -267,11 +267,63 @@ export async function postGuestbookReply(
   return { success: true };
 }
 
+export interface UploadedMediaItem {
+  url: string;
+  category?: string;
+  media_type?: string;
+  width?: number;
+  height?: number;
+}
+
+export async function uploadPostImage(
+  endpoint: string,
+  token: string,
+  fileUri: string,
+  fileName?: string
+): Promise<{ success: boolean; url?: string; width?: number; height?: number; error?: string }> {
+  try {
+    const formatted = endpoint.replace(/\/$/, '');
+    const cleanFileName = fileName || fileUri.split('/').pop() || 'upload.jpg';
+    const match = /\.(\w+)$/.exec(cleanFileName);
+    const type = match ? `image/${match[1].toLowerCase() === 'jpg' ? 'jpeg' : match[1].toLowerCase()}` : `image/jpeg`;
+
+    const formData = new FormData();
+    // React Native FormData accepts an object with uri, name, and type
+    formData.append('image', {
+      uri: fileUri,
+      name: cleanFileName,
+      type,
+    } as any);
+
+    const res = await fetch(`${formatted}/api/media/upload-post-image`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.success) {
+      return { success: false, error: data?.error || 'Failed to upload image' };
+    }
+
+    return {
+      success: true,
+      url: data.url,
+      width: data.width,
+      height: data.height,
+    };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network upload error' };
+  }
+}
+
 export async function createPost(
   endpoint: string,
   token: string,
   content: string,
-  category: string = 'general'
+  media: UploadedMediaItem[] = []
 ): Promise<{ success: boolean; error?: string }> {
   const formatted = endpoint.replace(/\/$/, '');
   const res = await fetch(`${formatted}/api/posts`, {
@@ -282,7 +334,7 @@ export async function createPost(
     },
     body: JSON.stringify({
       content,
-      category,
+      media,
     }),
   });
   const data = await res.json().catch(() => null);
@@ -290,4 +342,235 @@ export async function createPost(
     return { success: false, error: data?.error || 'Failed to publish post' };
   }
   return { success: true };
+}
+
+export interface AniListSearchResult {
+  id: number;
+  title: {
+    romaji?: string;
+    english?: string;
+    native?: string;
+  };
+  coverImage?: {
+    large?: string;
+    medium?: string;
+    extraLarge?: string;
+  };
+  bannerImage?: string;
+  format?: string;
+  episodes?: number;
+  seasonYear?: number;
+  genres?: string[];
+  description?: string;
+  studios?: {
+    nodes?: Array<{ name: string }>;
+  };
+}
+
+export async function searchAniList(endpoint: string, query: string): Promise<AniListSearchResult[]> {
+  try {
+    const formatted = endpoint.replace(/\/$/, '');
+    const res = await fetch(`${formatted}/api/anime/search?q=${encodeURIComponent(query)}`);
+    if (!res.ok) return [];
+    const data = await res.json();
+    return data.results || [];
+  } catch {
+    return [];
+  }
+}
+
+export interface AddAnimePayload {
+  anilist_id: number;
+  title: string;
+  romaji_title?: string;
+  native_title?: string;
+  cover_url?: string | null;
+  banner_url?: string | null;
+  format?: string | null;
+  status: string;
+  current_episode: number;
+  total_episodes?: number | null;
+  score?: number | null;
+  genres?: string[];
+  studio?: string | null;
+  season_year?: number | null;
+  summary?: string | null;
+}
+
+export async function addAnimeToWatchlist(
+  endpoint: string,
+  token: string,
+  payload: AddAnimePayload
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    const formatted = endpoint.replace(/\/$/, '');
+    const res = await fetch(`${formatted}/api/anime`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok) {
+      return { success: false, error: data?.error || 'Failed to add anime' };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error' };
+  }
+}
+
+export async function uploadCoverImage(
+  endpoint: string,
+  token: string,
+  fileUri: string,
+  fileName?: string
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  try {
+    const formatted = endpoint.replace(/\/$/, '');
+    const cleanFileName = fileName || fileUri.split('/').pop() || 'cover.jpg';
+    const match = /\.(\w+)$/.exec(cleanFileName);
+    const type = match ? `image/${match[1].toLowerCase() === 'jpg' ? 'jpeg' : match[1].toLowerCase()}` : `image/jpeg`;
+
+    const formData = new FormData();
+    formData.append('cover', {
+      uri: fileUri,
+      name: cleanFileName,
+      type,
+    } as any);
+    formData.append('image', {
+      uri: fileUri,
+      name: cleanFileName,
+      type,
+    } as any);
+
+    let res = await fetch(`${formatted}/api/media/upload-cover`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    let data = await res.json().catch(() => null);
+
+    // Fallback to upload-post-image if upload-cover fails
+    if (!res.ok || !data?.success) {
+      res = await fetch(`${formatted}/api/media/upload-post-image`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+      data = await res.json().catch(() => null);
+    }
+
+    if (!res.ok || !data?.success || !data?.url) {
+      return { success: false, error: data?.error || 'Failed to upload cover art' };
+    }
+
+    return { success: true, url: data.url };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error uploading cover art' };
+  }
+}
+
+export async function presignAudioUpload(
+  endpoint: string,
+  token: string,
+  filename: string,
+  contentType: string = 'audio/ogg; codecs=opus'
+): Promise<{ success: boolean; uploadUrl?: string; publicUrl?: string; contentType?: string; error?: string }> {
+  try {
+    const formatted = endpoint.replace(/\/$/, '');
+    const res = await fetch(`${formatted}/api/media/presign-audio`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        filename,
+        contentType,
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.success) {
+      return { success: false, error: data?.error || 'Failed to generate presigned audio URL' };
+    }
+    return {
+      success: true,
+      uploadUrl: data.uploadUrl,
+      publicUrl: data.publicUrl,
+      contentType: data.contentType,
+    };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error requesting presigned ticket' };
+  }
+}
+
+export async function uploadAudioToPresignedUrl(
+  uploadUrl: string,
+  fileUri: string,
+  contentType: string
+): Promise<{ success: boolean; error?: string }> {
+  try {
+    // In React Native fetch, PUT binary file uri directly
+    const res = await fetch(uploadUrl, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': contentType,
+      },
+      body: {
+        uri: fileUri,
+        type: contentType,
+        name: fileUri.split('/').pop() || 'track.opus',
+      } as any,
+    });
+
+    if (!res.ok) {
+      return { success: false, error: `Upload to storage rejected (HTTP ${res.status})` };
+    }
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to stream audio file' };
+  }
+}
+
+export interface AddTrackPayload {
+  title: string;
+  artist: string;
+  album?: string | null;
+  audio_url: string;
+  cover_url?: string | null;
+  duration?: string | null;
+  duration_sec?: number | null;
+}
+
+export async function addTrack(
+  endpoint: string,
+  token: string,
+  payload: AddTrackPayload
+): Promise<{ success: boolean; error?: string; track?: DbTrack }> {
+  try {
+    const formatted = endpoint.replace(/\/$/, '');
+    const res = await fetch(`${formatted}/api/tracks`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.success) {
+      return { success: false, error: data?.error || 'Failed to add track' };
+    }
+    return { success: true, track: data.track };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error' };
+  }
 }

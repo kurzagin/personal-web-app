@@ -41,7 +41,7 @@ export const CreatePostModal: React.FC<CreatePostModalProps> = ({
     setLoading(true);
     setError(null);
 
-    const res = await createPost(endpoint, token, content.trim(), category);
+    const res = await createPost(endpoint, token, content.trim(), []);
     setLoading(false);
 
     if (res.success) {
