@@ -96,7 +96,7 @@ export default async function PostPage({
         isPostLiked = userLikes.length > 0;
       }
     } catch (err) {
-      console.error('Error fetching thread from Neon:', err);
+      console.error('Error fetching thread from database:', err);
     }
   }
 

@@ -13,21 +13,11 @@
     "mobile:android": "npm run --prefix apps/mobile android",
     "create-account": "npm run --prefix apps/web create-account --",
     "change-password": "npm run --prefix apps/web change-password --",
-    "db:push": "npm run --prefix apps/web db:push",
-    "db:generate": "npm run --prefix apps/web db:generate",
-    "db:studio": "npm run --prefix apps/web db:studio",
-    "db:setup": "npm run --prefix apps/web db:setup",
     "pwa:icons": "npm run --prefix apps/web pwa:icons",
     "convert:opus": "node scripts/opus-converter.mjs",
     "r2:cors": "node scripts/setup-r2-cors.mjs",
-    "db:migrate-cdn": "node scripts/migrate-media-urls.mjs",
-    "db:export-d1": "node scripts/export-neon-to-d1.mjs",
     "d1:create": "npx wrangler d1 create kurzagin",
-    "d1:setup": "npx wrangler d1 execute kurzagin --remote --file=drizzle/d1-schema.sql",
-    "d1:import": "npx wrangler d1 execute kurzagin --remote --file=drizzle/neon-to-d1-dump.sql"
-  },
-  "dependencies": {
-    "@neondatabase/serverless": "^1.2.0"
+    "d1:setup": "npx wrangler d1 execute kurzagin --remote --file=drizzle/d1-schema.sql"
   },
   "optionalDependencies": {
     "@esbuild/linux-x64": "0.28.2",

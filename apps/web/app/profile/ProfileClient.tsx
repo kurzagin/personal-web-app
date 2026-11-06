@@ -163,7 +163,7 @@ export default function ProfileClient({
     if (btn) btn.disabled = true;
     if (statusEl) {
       statusEl.style.color = 'var(--accent)';
-      statusEl.textContent = 'Saving changes to Neon database...';
+      statusEl.textContent = 'Saving changes to database...';
     }
 
     try {
