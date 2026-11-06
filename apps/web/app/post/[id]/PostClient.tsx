@@ -3,13 +3,12 @@
 
 import React, { useState } from 'react';
 import Link from 'next/link';
-import { Heart, MessageSquare, Pencil } from 'lucide-react';
+import { Heart, MessageSquare } from 'lucide-react';
 import { css } from '../../_ui/css';
 import { TweetEmbed } from '@/components/TweetEmbed';
 import { OgCardList } from '@/components/OgCard';
 import { processPostContent, formatBody } from '@/lib/embeds';
 import type { DbPost, DbComment, DbPostMedia, DbProfile } from '@/lib/db';
-import EditPostModal from '@/components/EditPostModal';
 import './post.css';
 
 function formatPostTime(dateVal: string | Date) {
@@ -40,8 +39,6 @@ interface PostClientProps {
   mediaItems: DbPostMedia[];
   profile: DbProfile;
   isPostLiked: boolean;
-  authenticated?: boolean;
-  operatorName?: string;
 }
 
 export default function PostClient({
@@ -50,10 +47,7 @@ export default function PostClient({
   mediaItems,
   profile,
   isPostLiked,
-  authenticated = false,
-  operatorName = '',
 }: PostClientProps) {
-  const [isEditOpen, setIsEditOpen] = useState(false);
   const [comments, setComments] = useState(postComments);
   const [replyingTo, setReplyingTo] = useState(null);
   const {
@@ -209,18 +203,6 @@ export default function PostClient({
         <button className="post-act" onClick={() => { document.getElementById('commentInput')?.focus(); }} style={css("display: inline-flex; align-items: center; gap: 4px")}>
           <MessageSquare size={13} /> <span>{comments.length}</span>
         </button>
-        {authenticated && (
-          <button
-            type="button"
-            className="post-act edit-btn"
-            onClick={() => setIsEditOpen(true)}
-            title="Operator: Edit transmission"
-            style={css("margin-left: auto; color: var(--accent); opacity: 0.85; display: inline-flex; align-items: center; gap: 4px;")}
-          >
-            <Pencil size={12} />
-            <span>EDIT</span>
-          </button>
-        )}
       </div>
     </article>
 
@@ -242,10 +224,10 @@ export default function PostClient({
         <div style={css("display: flex; flex-direction: column; gap: 12px;")}>
           {/* Handle Input */}
           <div style={css("display: flex; align-items: center; gap: 8px;")}>
-            {!authenticated && <label htmlFor="authorNameInput" style={css("font-family: var(--mono); font-size: 0.65rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; min-width: 70px;")}>
+            <label htmlFor="authorNameInput" style={css("font-family: var(--mono); font-size: 0.65rem; color: var(--text-3); text-transform: uppercase; letter-spacing: 1px; min-width: 70px;")}>
               Your Name:
-            </label>}
-            {!authenticated && <input
+            </label>
+            <input
               type="text"
               id="authorNameInput"
               name="authorName"
@@ -253,8 +235,7 @@ export default function PostClient({
               placeholder="e.g. alice (leave empty for [guest])"
               maxlength="50"
               style={css("width: 100%; max-width: 280px;")}
-            />}
-            {authenticated && <span style={css("font-family: var(--mono); font-size: 0.65rem; color: var(--accent);")}>Operator: @{operatorName}</span>}
+            />
           </div>
 
           {/* Comment Textarea */}
@@ -303,18 +284,6 @@ export default function PostClient({
         )}
       </div>
     </section>
-
-    {/* OPERATOR EDIT POST MODAL */}
-    {authenticated && (
-      <EditPostModal
-        isOpen={isEditOpen}
-        post={post}
-        initialMedia={mediaItems}
-        onClose={() => setIsEditOpen(false)}
-        onSaved={() => window.location.reload()}
-        onDeleted={() => { window.location.href = '/#blog'; }}
-      />
-    )}
 
   </div>
 

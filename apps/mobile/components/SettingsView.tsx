@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,21 +7,29 @@ import {
   TextInput,
   ScrollView,
   ActivityIndicator,
+  Image,
 } from 'react-native';
 import {
   LogOut,
   Check,
+  Upload,
+  X,
+  ExternalLink,
 } from 'lucide-react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { colors, typography } from '@kurzagin/ui';
-import { loginOperator } from '../lib/api';
+import { loginOperator, uploadProfileMedia, updateHeroAndTheme } from '../lib/api';
 
 interface SettingsViewProps {
   endpoint: string;
   onUpdateEndpoint: (newEndpoint: string) => void;
   token: string | null;
   operatorUser: string | null;
+  currentBannerUrl?: string | null;
+  currentTheme?: string;
   onLoginSuccess: (token: string, username: string) => void;
   onLogout: () => void;
+  onSettingsSaved?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -29,15 +37,87 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onUpdateEndpoint,
   token,
   operatorUser,
+  currentBannerUrl = null,
+  currentTheme = 'default',
   onLoginSuccess,
   onLogout,
+  onSettingsSaved,
 }) => {
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
-  const [selectedSkin, setSelectedSkin] = useState<'default' | 'citlali' | 'furina'>('default');
+  const [selectedSkin, setSelectedSkin] = useState<'default' | 'citlali' | 'furina'>(
+    (currentTheme as any) || 'default'
+  );
+  const [heroUrl, setHeroUrl] = useState(currentBannerUrl || '');
   const [loading, setLoading] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
+  const [uploadingHero, setUploadingHero] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [statusMsg, setStatusMsg] = useState('// status: awaiting credentials');
+  const [settingsStatus, setSettingsStatus] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (currentBannerUrl !== undefined) {
+      setHeroUrl(currentBannerUrl || '');
+    }
+  }, [currentBannerUrl]);
+
+  useEffect(() => {
+    if (currentTheme) {
+      setSelectedSkin((['default', 'citlali', 'furina'].includes(currentTheme) ? currentTheme : 'default') as any);
+    }
+  }, [currentTheme]);
+
+  const handlePickHeroImage = async () => {
+    if (!token) return;
+    try {
+      const res = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ['images'],
+        allowsEditing: true,
+        aspect: [16, 9],
+        quality: 0.9,
+      });
+
+      if (!res.canceled && res.assets && res.assets.length > 0) {
+        setUploadingHero(true);
+        setSettingsStatus('Uploading hero image to R2...');
+        const uploadRes = await uploadProfileMedia(endpoint, token, res.assets[0].uri, 'banner');
+        if (uploadRes.success && uploadRes.url) {
+          setHeroUrl(uploadRes.url);
+          setSettingsStatus('// Hero image uploaded to Cloudflare R2!');
+        } else {
+          setSettingsStatus(`// Upload failed: ${uploadRes.error || 'Server error'}`);
+        }
+      }
+    } catch (err: any) {
+      setSettingsStatus(`// Error: ${err?.message || 'Failed to select image'}`);
+    } finally {
+      setUploadingHero(false);
+    }
+  };
+
+  const handleSavePreferences = async () => {
+    if (!token) return;
+    setSavingSettings(true);
+    setSettingsStatus('Saving preferences...');
+
+    const res = await updateHeroAndTheme(
+      endpoint,
+      token,
+      heroUrl.trim() || null,
+      selectedSkin
+    );
+
+    if (res.success) {
+      setSettingsStatus('// Hero image & site skin saved!');
+      if (onSettingsSaved) {
+        onSettingsSaved();
+      }
+    } else {
+      setSettingsStatus(`// Error: ${res.error || 'Failed to save'}`);
+    }
+    setSavingSettings(false);
+  };
 
   const handleOperatorLogin = async () => {
     if (!identifier.trim() || !password.trim()) {
@@ -106,11 +186,80 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             <Text style={styles.themeStatus}>// current skin: {selectedSkin}</Text>
           </View>
 
-          {/* Hero Banner Header */}
+          {/* Hero Banner Header & Controls */}
           <View style={styles.cardHeaderRow}>
             <Text style={styles.panelTag}>// HERO IMAGE</Text>
             <Text style={styles.operatorUserTag}>@{operatorUser || 'operator'}</Text>
           </View>
+
+          {/* Hero Preview Card */}
+          <View style={styles.heroPreviewWrap}>
+            {heroUrl ? (
+              <Image source={{ uri: heroUrl }} style={styles.heroPreviewImg} resizeMode="cover" />
+            ) : (
+              <View style={styles.heroPreviewPlaceholder}>
+                <Text style={styles.heroPlaceholderText}>NO HERO IMAGE</Text>
+              </View>
+            )}
+          </View>
+
+          <View style={styles.fieldGroup}>
+            <Text style={styles.inputLabel}>IMAGE URL</Text>
+            <TextInput
+              style={styles.textInput}
+              value={heroUrl}
+              onChangeText={setHeroUrl}
+              placeholder="https://... or upload below"
+              placeholderTextColor={colors.textDim}
+              autoCapitalize="none"
+            />
+          </View>
+
+          <View style={styles.heroActionsRow}>
+            <TouchableOpacity
+              style={styles.heroActionBtn}
+              onPress={handlePickHeroImage}
+              disabled={uploadingHero}
+            >
+              {uploadingHero ? (
+                <ActivityIndicator size="small" color={colors.accent} />
+              ) : (
+                <>
+                  <Upload size={12} color={colors.accent} />
+                  <Text style={styles.heroActionBtnText}>UPLOAD</Text>
+                </>
+              )}
+            </TouchableOpacity>
+
+            {heroUrl ? (
+              <TouchableOpacity
+                style={styles.heroActionBtn}
+                onPress={() => setHeroUrl('')}
+              >
+                <X size={12} color={colors.textDim} />
+                <Text style={[styles.heroActionBtnText, { color: colors.textDim }]}>CLEAR</Text>
+              </TouchableOpacity>
+            ) : null}
+
+            <TouchableOpacity
+              style={styles.saveHeroBtn}
+              onPress={handleSavePreferences}
+              disabled={savingSettings}
+            >
+              {savingSettings ? (
+                <ActivityIndicator size="small" color="#0a0a0c" />
+              ) : (
+                <>
+                  <Check size={12} color="#0a0a0c" />
+                  <Text style={styles.saveHeroBtnText}>SAVE →</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {settingsStatus ? (
+            <Text style={styles.settingsStatusMsg}>{settingsStatus}</Text>
+          ) : null}
 
           {/* Logout Action Row */}
           <View style={styles.logoutRow}>
@@ -328,6 +477,73 @@ const styles = StyleSheet.create({
     borderTopColor: '#2a2a30',
     paddingTop: 16,
     alignItems: 'flex-end',
+  },
+  heroPreviewWrap: {
+    height: 120,
+    borderWidth: 1,
+    borderColor: '#2a2a30',
+    borderRadius: 3,
+    backgroundColor: '#0a0a0c',
+    overflow: 'hidden',
+  },
+  heroPreviewImg: {
+    width: '100%',
+    height: '100%',
+  },
+  heroPreviewPlaceholder: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  heroPlaceholderText: {
+    fontFamily: typography.fontMono,
+    fontSize: 10,
+    color: '#706c66',
+    letterSpacing: 1,
+  },
+  heroActionsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  heroActionBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: '#18181c',
+    borderWidth: 1,
+    borderColor: '#2a2a30',
+    paddingHorizontal: 10,
+    paddingVertical: 7,
+    borderRadius: 2,
+  },
+  heroActionBtnText: {
+    fontFamily: typography.fontMono,
+    fontSize: 10,
+    color: colors.accent,
+  },
+  saveHeroBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    backgroundColor: colors.accent,
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 2,
+    marginLeft: 'auto',
+  },
+  saveHeroBtnText: {
+    fontFamily: typography.fontMono,
+    fontSize: 10,
+    fontWeight: 'bold',
+    color: '#0a0a0c',
+    letterSpacing: 0.5,
+  },
+  settingsStatusMsg: {
+    fontFamily: typography.fontMono,
+    fontSize: 10,
+    color: colors.accent,
+    marginTop: 4,
   },
   logoutBtn: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-export type NavCurrent = 'home' | 'music' | 'anime' | 'games' | 'novels' | 'profile' | 'settings' | 'guestbook' | 'tools' | 'messages';
+export type NavCurrent = 'home' | 'music' | 'anime' | 'games' | 'novels' | 'profile' | 'guestbook' | 'tools';
 
 /** Maps a pathname to the section highlighted in the navigation (mirrors the old per-page `current` prop). */
 export function getCurrent(pathname: string | null): NavCurrent {
@@ -9,8 +9,6 @@ export function getCurrent(pathname: string | null): NavCurrent {
   if (p === '/novels' || p.startsWith('/novels/')) return 'novels';
   if (p === '/tools' || p.startsWith('/tools/')) return 'tools';
   if (p === '/profile') return 'profile';
-  if (p === '/settings') return 'settings';
   if (p === '/guestbook') return 'guestbook';
-  if (p === '/messages') return 'messages';
   return 'home';
 }

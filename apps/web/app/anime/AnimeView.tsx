@@ -93,7 +93,6 @@ function renderReviewContent(content: string) {
 }
 
 interface AnimeViewProps {
-  authenticated: boolean;
   initialStatus: string;
   initialPage: number;
   stats: any;
@@ -108,7 +107,6 @@ interface AnimeViewProps {
 }
 
 export default function AnimeView({
-  authenticated,
   initialStatus,
   initialPage,
   stats,
@@ -132,11 +130,7 @@ export default function AnimeView({
           <span className="jp-label">アニメ</span> — watching, rewatching, remembering • synced via AniList
         </div>
       </div>
-      {authenticated && (
-        <button className="add-anime-btn" onClick={(e) => { const w = window as any; openAddAnimeModal() }}>
-          <Plus size={16} /> // ADD ANIME (ANILIST)
-        </button>
-      )}
+
     </div>
   </div>
 
@@ -220,22 +214,8 @@ export default function AnimeView({
           The broadcast is silent. No series currently watching, completed, or queued in the log.
         </p>
         <span className="empty-state-meta">
-          {authenticated
-            ? '// operator ready — query AniList to log your first series'
-            : '// status: idle — awaiting curator entries'}
+          // status: idle — awaiting curator entries
         </span>
-        {authenticated && (
-          <div style={css("margin-top: 18px;")}>
-            <button
-              type="button"
-              className="post-btn"
-              style={css("cursor: pointer; font-size: 0.75rem; display: inline-flex; align-items: center; gap: 6px;")}
-              onClick={(e) => { const w = window as any; openAddAnimeModal() }}
-            >
-              <Plus size={14} /> // ADD ANIME (ANILIST) →
-            </button>
-          </div>
-        )}
       </div>
     ) : (
       <>
@@ -342,43 +322,7 @@ export default function AnimeView({
                   </div>
                 </div>
 
-                {/* OPERATOR CONTROLS */}
-                {authenticated && (
-                  <div className="anime-operator-row">
-                    <button
-                      type="button"
-                      className="quick-ep-btn"
-                      title="Increment episode +1"
-                      onClick={() => { const w = window as any; w.incrementEpisode?.(item.id, item.current_episode, item.total_episodes || null, item.status); }}
-                    >
-                      +1 EP
-                    </button>
-                    <button
-                      type="button"
-                      className="quick-review-btn"
-                      title="Post episode review / log"
-                      onClick={() => { const w = window as any; w.openReviewModal?.(item.id, item.title, item.current_episode, item.total_episodes || null); }}
-                    >
-                      <MessageSquare size={13} /> // LOG REVIEW
-                    </button>
-                    <button
-                      type="button"
-                      className="quick-edit-btn"
-                      title="Edit progress & status"
-                      onClick={() => { const w = window as any; w.openEditModal?.(item.id, item.title, item.current_episode, item.total_episodes || null, item.status, item.score || null); }}
-                    >
-                      <Edit3 size={13} />
-                    </button>
-                    <button
-                      type="button"
-                      className="quick-delete-btn"
-                      title="Remove from watchlist"
-                      onClick={() => { const w = window as any; w.deleteAnime?.(item.id, item.title); }}
-                    >
-                      <Trash2 size={13} />
-                    </button>
-                  </div>
-                )}
+
 
                 {/* LATEST REVIEW / EPISODIC LOG SNIPPET */}
                 {item.latest_review ? (
@@ -420,7 +364,7 @@ export default function AnimeView({
                   </div>
                 ) : (
                   <div className="no-reviews-note">
-                    // no review logs yet {authenticated && '— click [LOG REVIEW] to add'}
+                    // no review logs yet
                   </div>
                 )}
 
@@ -516,235 +460,6 @@ export default function AnimeView({
       </>
     )}
   </section>
-
-  {/* MODAL 1: ADD ANIME FROM ANILIST */}
-  <div id="addAnimeModal" className="cyber-modal-overlay" style={css("display: none;")}>
-    <div className="cyber-modal bracket-card">
-      <div className="modal-header">
-        <div className="modal-title">
-          <span className="hl">QUERY ANILIST</span> // ADD TO WATCHLIST
-        </div>
-        <button className="modal-close-btn" onClick={(e) => { const w = window as any; closeAddAnimeModal() }} title="Close">
-          <X size={16} />
-        </button>
-      </div>
-
-      <div className="modal-search-row">
-        <input
-          type="text"
-          id="anilistSearchInput"
-          placeholder="Search anime title on AniList (e.g. Frieren, Evangelion, Lain)..."
-          onInput={(e) => { const w = window as any; handleAniListSearchDebounced() }}
-        />
-        <button className="search-action-btn" onClick={(e) => { const w = window as any; searchAniListDirect() }}>
-          <Search size={16} /> SEARCH
-        </button>
-      </div>
-
-      <div id="searchResultsList" className="search-results-container">
-        <div className="search-hint">// type a title above to fetch metadata & cover art from AniList</div>
-      </div>
-
-      {/* SELECTED ANIME STAGING FORM */}
-      <div id="selectedAnimeStaging" style={css("display: none;")} className="anime-staging-form">
-        <div className="staging-head">
-          <img id="stagingCover" src="" alt="Selected Cover" className="staging-cover" />
-          <div className="staging-info">
-            <h4 id="stagingTitle" className="staging-title"></h4>
-            <div id="stagingMeta" className="staging-meta"></div>
-            <div id="stagingDesc" className="staging-desc"></div>
-          </div>
-        </div>
-
-        <div className="staging-fields-grid">
-          <div className="form-group">
-            <label htmlFor="stagingStatus">// WATCHLIST STATUS</label>
-            <select id="stagingStatus" onChange={(e) => { const w = window as any; handleStagingStatusChange() }}>
-              <option value="watching">Watching (視聴中)</option>
-              <option value="completed">Completed (完了)</option>
-              <option value="planning">Plan to Watch (見たい)</option>
-              <option value="paused">Paused / On Hold</option>
-              <option value="dropped">Dropped</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="stagingCurrentEp">// CURRENT EPISODE</label>
-            <input type="number" id="stagingCurrentEp" min="0" value="0" onInput={(e) => { const w = window as any; handleStagingEpChange() }} />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="stagingScore">// SCORE (1 - 10)</label>
-            <input type="number" id="stagingScore" min="1" max="10" placeholder="Optional" />
-          </div>
-        </div>
-
-        <div className="staging-actions">
-          <button className="staging-cancel-btn" onClick={(e) => { const w = window as any; clearSelectedAnime() }}>BACK TO RESULTS</button>
-          <button className="staging-submit-btn" id="confirmAddAnimeBtn" onClick={(e) => { const w = window as any; submitAddAnime() }}>
-            + COMMIT TO WATCHLIST
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {/* MODAL 2: ADD REVIEW / LOG EPISODE */}
-  <div id="reviewModal" className="cyber-modal-overlay" style={css("display: none;")}>
-    <div className="cyber-modal bracket-card">
-      <div className="modal-header">
-        <div className="modal-title">
-          <span className="hl">LOG / REVIEW</span> // <span id="reviewModalAnimeTitle">Anime</span>
-        </div>
-        <button className="modal-close-btn" onClick={(e) => { const w = window as any; closeReviewModal() }} title="Close">
-          <X size={16} />
-        </button>
-      </div>
-
-      <input type="hidden" id="reviewAnimeId" value="" />
-
-      <div className="modal-form-body">
-        <div className="modal-fields-row">
-          <div className="form-group">
-            <label htmlFor="reviewEpisode">// WATCHED EPISODE</label>
-            <input
-              type="number"
-              id="reviewEpisode"
-              placeholder="e.g. 10 (or blank for series)"
-              min="1"
-            />
-            <span className="input-hint">e.g. 10 for mid-watch review</span>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="reviewType">// REVIEW STAGE / CATEGORY</label>
-            <select id="reviewType" onChange={(e) => { const w = window as any; handleReviewTypeChange() }}>
-              <option value="mid_watch">Mid-Watch / Episodic Log</option>
-              <option value="first_impression">First Impression (Ep 1-3)</option>
-              <option value="final">Final Verdict (Completed)</option>
-              <option value="rewatch">Rewatch Impressions</option>
-              <option value="dropped">Dropped Thoughts</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="reviewRating">// RATING (1 - 10)</label>
-            <input
-              type="number"
-              id="reviewRating"
-              placeholder="Score 1-10"
-              min="1"
-              max="10"
-            />
-          </div>
-        </div>
-
-        <div className="form-group" style={css("margin-top: 12px;")}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <label htmlFor="reviewContent">// REVIEW THOUGHTS & LOG ENTRY</label>
-            <label htmlFor="reviewImageInput" className="review-attach-btn" title="Attach screenshots or images">
-              <Paperclip size={13} />
-              <span>ATTACH IMAGE</span>
-            </label>
-          </div>
-          <input
-            type="file"
-            id="reviewImageInput"
-            accept="image/*"
-            multiple
-            style={{ display: 'none' }}
-            onChange={(e) => { const w = window as any; w.handleReviewImagesSelected?.(e); }}
-          />
-          <textarea
-            id="reviewContent"
-            rows="5"
-            placeholder="Write your impressions, thoughts on animation, music, directing, pacing, or arc climax..."
-          ></textarea>
-
-          {/* Staged review images tray */}
-          <div id="reviewImagePreviews" className="review-image-previews" style={{ display: 'none' }}></div>
-        </div>
-
-        <div className="review-checkboxes-row">
-          <label className="cyber-checkbox-label">
-            <input type="checkbox" id="reviewHasSpoilers" />
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <AlertTriangle size={13} className="checkbox-icon warning" />
-              <span>Contains Spoilers (protect with click-to-reveal)</span>
-            </span>
-          </label>
-
-          <label className="cyber-checkbox-label">
-            <input type="checkbox" id="reviewShareToFeed" defaultChecked />
-            <span style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }}>
-              <Radio size={13} className="checkbox-icon broadcast" />
-              <span>Broadcast review to main blog feed (index)</span>
-            </span>
-          </label>
-        </div>
-
-        <div className="modal-actions-footer">
-          <button className="staging-cancel-btn" onClick={(e) => { const w = window as any; closeReviewModal() }}>CANCEL</button>
-          <button className="staging-submit-btn" id="submitReviewBtn" onClick={(e) => { const w = window as any; submitReview() }}>
-            PUBLISH REVIEW LOG →
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  {/* MODAL 3: EDIT PROGRESS & STATUS */}
-  <div id="editModal" className="cyber-modal-overlay" style={css("display: none;")}>
-    <div className="cyber-modal bracket-card">
-      <div className="modal-header">
-        <div className="modal-title">
-          <span className="hl">UPDATE PROGRESS</span> // <span id="editModalAnimeTitle">Anime</span>
-        </div>
-        <button className="modal-close-btn" onClick={(e) => { const w = window as any; closeEditModal() }} title="Close">
-          <X size={16} />
-        </button>
-      </div>
-
-      <input type="hidden" id="editAnimeId" value="" />
-
-      <div className="modal-form-body">
-        <div className="staging-fields-grid">
-          <div className="form-group">
-            <label htmlFor="editStatus">// STATUS</label>
-            <select id="editStatus" onChange={(e) => { const w = window as any; handleEditStatusChange() }}>
-              <option value="watching">Watching</option>
-              <option value="completed">Completed</option>
-              <option value="planning">Plan to Watch</option>
-              <option value="paused">Paused</option>
-              <option value="dropped">Dropped</option>
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="editEpisode">// CURRENT EPISODE</label>
-            <input type="number" id="editEpisode" min="0" onInput={(e) => { const w = window as any; handleEditEpChange() }} />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="editTotalEpisodes">// TOTAL EPISODES</label>
-            <input type="number" id="editTotalEpisodes" min="1" placeholder="Unknown if ongoing" onInput={(e) => { const w = window as any; handleEditStatusChange() }} />
-          </div>
-
-          <div className="form-group">
-            <label htmlFor="editScore">// SCORE (1 - 10)</label>
-            <input type="number" id="editScore" min="1" max="10" placeholder="Unrated" />
-          </div>
-        </div>
-
-        <div className="modal-actions-footer">
-          <button className="staging-cancel-btn" onClick={(e) => { const w = window as any; closeEditModal() }}>CANCEL</button>
-          <button className="staging-submit-btn" id="saveEditBtn" onClick={(e) => { const w = window as any; submitEditProgress() }}>
-            SAVE PROGRESS
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
 
     </>
   );

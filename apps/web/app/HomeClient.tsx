@@ -1,10 +1,9 @@
 // @ts-nocheck
 'use client';
 
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
 import {
-  Paperclip,
   Heart,
   MessageSquare,
   ExternalLink,
@@ -17,10 +16,8 @@ import {
   Inbox,
   ArrowRight,
   ArrowUpRight,
-  Pencil,
 } from 'lucide-react';
 import { css } from './_ui/css';
-import EditPostModal from '@/components/EditPostModal';
 import { TweetEmbed } from '@/components/TweetEmbed';
 import { OgCardList } from '@/components/OgCard';
 import { processPostContent, formatBody } from '@/lib/embeds';
@@ -32,7 +29,6 @@ import type {
   DbTrack,
   ProjectEntry,
 } from '@/lib/db';
-import type { SessionUser } from '@/lib/auth';
 
 function formatProjectHost(url?: string) {
   if (!url) return 'view dossier';
@@ -68,8 +64,6 @@ function formatPostTime(dateStr: string | Date) {
 }
 
 interface HomeClientProps {
-  authenticated: boolean;
-  session: SessionUser | null;
   profile: DbProfile;
   currentlyBuilding: ProjectEntry[];
   isMediaFilter: boolean;
@@ -83,8 +77,6 @@ interface HomeClientProps {
 }
 
 export default function HomeClient({
-  authenticated,
-  session,
   profile,
   currentlyBuilding,
   isMediaFilter,
@@ -97,8 +89,6 @@ export default function HomeClient({
   gameContext,
 }: HomeClientProps) {
   const likedPostIds = new Set(likedPostIdsArray);
-  const [editingPost, setEditingPost] = useState<DbPost | null>(null);
-  const [editingMedia, setEditingMedia] = useState<DbPostMedia[]>([]);
 
   return (
     <>
@@ -137,15 +127,6 @@ export default function HomeClient({
       <h2>blog</h2>
       <span className="jp-label">日誌</span>
       <div className="line"></div>
-      {authenticated ? (
-        <span style={css("font-family: var(--mono); font-size: 0.65rem; color: var(--accent);")}>
-          // operator: @{session?.username} — <a href="/api/auth/logout" style={css("color: var(--text-3); text-decoration: underline;")}>logout</a>
-        </span>
-      ) : (
-        <a href="/login" style={css("font-family: var(--mono); font-size: 0.6rem; color: var(--text-3); text-decoration: none; opacity: 0.6;")} title="Operator Login">
-          // operator access
-        </a>
-      )}
     </div>
 
     {/* FEED CATEGORY FILTER (ALL LOGS VS MEDIA ONLY VS ANIME) */}
@@ -170,50 +151,6 @@ export default function HomeClient({
       </a>
     </div>
 
-    {/* IN-PLACE CMS COMPOSER (ONLY VISIBLE WHEN OPERATOR IS AUTHENTICATED) */}
-    {authenticated && (
-      <div className="composer bracket-card" style={css("margin-bottom: 20px;")}>
-        <div style={css("font-family: var(--mono); font-size: 0.65rem; color: var(--accent); margin-bottom: 8px; letter-spacing: 1px;")}>
-          // TRANSMISSION CONSOLE — {gameContext ? `NEW ${gameContext.title.toUpperCase()} LOG` : 'NEW LOG'}
-        </div>
-        {gameContext && <div className="feed-filter-btn active" style={css("display: inline-block; margin-bottom: 10px;")}>GAME CONTEXT: {gameContext.title}</div>}
-        <textarea
-          id="postInput"
-          placeholder="broadcast new transmission to kurzagin... (supports #tags)"
-          maxlength="5000"
-          onInput={(e) => { const w = window as any; updateCharCount() }}
-        ></textarea>
-
-        {/* Media Attachment Preview Staging Grid */}
-        <div id="mediaPreviewWrap" className="media-preview-grid" style={css("display: none;")}></div>
-
-        {/* Hidden input for multiple file selection */}
-        <input
-          type="file"
-          id="postImageInput"
-          accept="image/*"
-          multiple
-          style={css("display: none;")}
-          onChange={(e) => { const w = window as any; handleImageSelected(event) }}
-        />
-
-        <div className="composer-footer">
-          <div style={css("display: flex; align-items: center; gap: 14px;")}>
-            <label
-              htmlFor="postImageInput"
-              className="attachment-icon"
-              title="Attach images (AVIF)"
-              aria-label="Attach images"
-            >
-              <Paperclip size={18} />
-            </label>
-            <span className="char-ct" id="charCount">0 / 5000</span>
-          </div>
-          <button className="post-btn" id="submitPostBtn" onClick={(e) => { const w = window as any; broadcastPost() }}>BROADCAST LOG →</button>
-        </div>
-      </div>
-    )}
-
     {/* POSTS FEED */}
     <div className="feed" id="postsFeed">
       {posts.length === 0 ? (
@@ -228,7 +165,7 @@ export default function HomeClient({
               : 'The back alleys are quiet tonight. No transmissions or logs have been broadcasted yet.'}
           </p>
           <span className="feed-empty-meta">
-            {authenticated ? '// curator ready — use the transmission console above' : '// status: idle — awaiting operator broadcast'}
+            // status: idle — awaiting operator broadcast
           </span>
         </div>
       ) : (
@@ -390,22 +327,6 @@ export default function HomeClient({
                   <MessageSquare size={13} />
                   <span>{postComments.length}</span>
                 </button>
-                {authenticated && (
-                  <button
-                    type="button"
-                    className="post-act edit-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingPost(post);
-                      setEditingMedia(postMediaItems);
-                    }}
-                    title="Operator: Edit transmission"
-                    style={css("margin-left: auto; color: var(--accent); opacity: 0.85; display: inline-flex; align-items: center; gap: 4px;")}
-                  >
-                    <Pencil size={12} />
-                    <span>EDIT</span>
-                  </button>
-                )}
               </div>
             </article>
           );
@@ -623,18 +544,6 @@ export default function HomeClient({
       </div>
     )}
   </section>
-
-  {/* OPERATOR EDIT POST MODAL */}
-  {authenticated && (
-    <EditPostModal
-      isOpen={!!editingPost}
-      post={editingPost}
-      initialMedia={editingMedia}
-      onClose={() => setEditingPost(null)}
-      onSaved={() => window.location.reload()}
-      onDeleted={() => window.location.reload()}
-    />
-  )}
 
   {/* STORE TRACKS DATA IN CLIENT DATASET */}
   <div id="tracksDataStore" data-tracks={JSON.stringify(tracks)} style={css("display: none;")}></div>
