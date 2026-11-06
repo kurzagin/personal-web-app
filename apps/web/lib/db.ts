@@ -1,9 +1,9 @@
-import { neon } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-http';
+import { drizzle } from 'drizzle-orm/d1';
 import { sql } from 'drizzle-orm';
-import * as schema from '../db/schema';
+import * as schema from '@kurzagin/shared';
+import { getD1 } from './d1';
 
-export * from '../db/schema';
+export * from '@kurzagin/shared';
 
 export type DbPost = schema.Post;
 export type DbPostMedia = schema.PostMedia;
@@ -17,6 +17,7 @@ export type DbAnimeWatchlistItem = schema.AnimeWatchlistItem;
 export type DbAnimeReview = schema.AnimeReview;
 export type AnimePostMeta = schema.AnimePostMeta;
 export type DbMediaAsset = schema.MediaAsset;
+export type WikiVisualReference = schema.WikiVisualReference;
 
 export async function incrementSiteVisits(): Promise<number> {
   const db = getDb();
@@ -104,20 +105,57 @@ Then I build the tool I wish already existed.`,
     { method: 'Direct Message', value: '@kurzagin on X', link: 'https://x.com/kurzagin' },
   ],
   contact_note: 'Ideas, feedback, technical conversations, and unusual collaborations are welcome ✨',
-  updated_at: new Date('2026-10-02T00:00:00Z'),
-  created_at: new Date('2026-10-02T00:00:00Z'),
+  updated_at: '2026-10-02T00:00:00Z',
+  created_at: '2026-10-02T00:00:00Z',
 };
 
-export function getDb(): DrizzleDb | null {
-  let databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    return null;
-  }
-  databaseUrl = databaseUrl.replace(/^["']|["']$/g, '').trim();
-  if (!cachedDb) {
-    const client = neon(databaseUrl);
-    cachedDb = drizzle({ client, schema });
-  }
+/**
+ * Creates or retrieves a Drizzle ORM client connected to Cloudflare D1
+ */
+export function getDb(): DrizzleDb {
+  if (cachedDb) return cachedDb;
+
+  const d1Client = getD1();
+
+  const d1Shim: any = {
+    prepare(query: string) {
+      let boundParams: any[] = [];
+      return {
+        bind(...params: any[]) {
+          boundParams = params;
+          return this;
+        },
+        async all() {
+          const res = await d1Client.query(query, boundParams);
+          return {
+            results: res.results || [],
+            success: res.success,
+            meta: res.meta,
+          };
+        },
+        async raw() {
+          const res = await d1Client.query(query, boundParams);
+          return (res.results || []).map((row: any) => Object.values(row));
+        },
+        async run() {
+          const res = await d1Client.query(query, boundParams);
+          return {
+            success: res.success,
+            meta: res.meta,
+          };
+        },
+      };
+    },
+    async batch(statements: any[]) {
+      return Promise.all(statements.map((s) => s.all()));
+    },
+    async exec(query: string) {
+      const res = await d1Client.query(query);
+      return { count: res.results?.length || 0, duration: 0 };
+    },
+  };
+
+  cachedDb = drizzle(d1Shim, { schema });
   return cachedDb;
 }
 
@@ -130,7 +168,7 @@ export async function getProfile(): Promise<DbProfile> {
       return res[0];
     }
   } catch (err) {
-    console.warn('[db] Unable to fetch profile from DB, using default fallback:', err);
+    console.warn('[db] Unable to fetch profile from D1, using default fallback:', err);
   }
   return DEFAULT_PROFILE;
 }

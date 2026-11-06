@@ -92,7 +92,7 @@ export async function POST(request: NextRequest) {
     const anime = animeRecord[0];
 
     // Auto-update watchlist progress if needed
-    const animeUpdates: Record<string, any> = { updated_at: new Date() };
+    const animeUpdates: Record<string, any> = { updated_at: new Date().toISOString() };
     if (episode !== null && episode > anime.current_episode) {
       animeUpdates.current_episode = episode;
     }

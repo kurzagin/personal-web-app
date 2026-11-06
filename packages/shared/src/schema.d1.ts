@@ -234,6 +234,29 @@ export const animeReviews = sqliteTable(
   ]
 );
 
+// 11b. Wiki Visual References Table
+export const wikiVisualReferences = sqliteTable(
+  'wiki_visual_references',
+  {
+    id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
+    novel_slug: text('novel_slug').notNull(),
+    category: text('category').notNull(),
+    entry_slug: text('entry_slug').notNull(),
+    url: text('url').notNull(),
+    storage_key: text('storage_key').notNull(),
+    alt_text: text('alt_text'),
+    caption: text('caption'),
+    source: text('source'),
+    created_at: text('created_at').default(sql`CURRENT_TIMESTAMP`).notNull(),
+  },
+  (table) => [
+    index('idx_wiki_visual_references_entry').on(table.novel_slug, table.category, table.entry_slug),
+  ]
+);
+
+export type WikiVisualReference = typeof wikiVisualReferences.$inferSelect;
+export type NewWikiVisualReference = typeof wikiVisualReferences.$inferInsert;
+
 // 12. Media Assets Registry
 export const mediaAssets = sqliteTable(
   'media_assets',
@@ -256,3 +279,31 @@ export const mediaAssets = sqliteTable(
     index('idx_media_assets_created_at').on(table.created_at),
   ]
 );
+
+export type SiteStats = typeof siteStats.$inferSelect;
+export type NewSiteStats = typeof siteStats.$inferInsert;
+export type Game = typeof games.$inferSelect;
+export type NewGame = typeof games.$inferInsert;
+export type Post = typeof posts.$inferSelect;
+export type NewPost = typeof posts.$inferInsert;
+export type PostMedia = typeof postMedia.$inferSelect;
+export type NewPostMedia = typeof postMedia.$inferInsert;
+export type Comment = typeof comments.$inferSelect;
+export type NewComment = typeof comments.$inferInsert;
+export type GuestbookEntry = typeof guestbookEntries.$inferSelect;
+export type NewGuestbookEntry = typeof guestbookEntries.$inferInsert;
+export type AdminUser = typeof adminUsers.$inferSelect;
+export type NewAdminUser = typeof adminUsers.$inferInsert;
+export type Track = typeof tracks.$inferSelect;
+export type NewTrack = typeof tracks.$inferInsert;
+export type PostLike = typeof postLikes.$inferSelect;
+export type NewPostLike = typeof postLikes.$inferInsert;
+export type Profile = typeof profiles.$inferSelect;
+export type NewProfile = typeof profiles.$inferInsert;
+export type AnimeWatchlistItem = typeof animeWatchlist.$inferSelect;
+export type NewAnimeWatchlistItem = typeof animeWatchlist.$inferInsert;
+export type AnimeReview = typeof animeReviews.$inferSelect;
+export type NewAnimeReview = typeof animeReviews.$inferInsert;
+export type MediaAsset = typeof mediaAssets.$inferSelect;
+export type NewMediaAsset = typeof mediaAssets.$inferInsert;
+
