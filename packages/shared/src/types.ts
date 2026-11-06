@@ -75,7 +75,7 @@ export interface TrackItem {
   created_at: string | Date;
 }
 
-export interface AnimeWatchlistItem {
+export interface AnimeWatchlistItemType {
   id: string;
   anilist_id: number;
   title: string;

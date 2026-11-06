@@ -31,7 +31,7 @@ export async function registerMediaAsset(params: RegisterAssetParams): Promise<D
         status: 'active',
         size_bytes: params.sizeBytes || null,
         mime_type: params.mimeType || null,
-        created_at: new Date(),
+        created_at: new Date().toISOString(),
       })
       .onConflictDoUpdate({
         target: mediaAssets.url,
@@ -77,7 +77,7 @@ export async function detachMediaByUrl(url: string | null | undefined): Promise<
         .update(mediaAssets)
         .set({
           status: 'detached',
-          detached_at: new Date(),
+          detached_at: new Date().toISOString(),
         })
         .where(eq(mediaAssets.id, existing[0].id));
       return true;
@@ -93,7 +93,7 @@ export async function detachMediaByUrl(url: string | null | undefined): Promise<
       storage: targetUrl.startsWith('/uploads/') ? 'local' : 'r2',
       media_type: inferMediaTypeFromKey(inferredKey),
       status: 'detached',
-      detached_at: new Date(),
+      detached_at: new Date().toISOString(),
     });
 
     return true;
@@ -144,7 +144,7 @@ export async function purgeMediaAsset(assetId: string): Promise<{ success: boole
       .update(mediaAssets)
       .set({
         status: 'deleted',
-        deleted_at: new Date(),
+        deleted_at: new Date().toISOString(),
       })
       .where(eq(mediaAssets.id, asset.id));
 
@@ -231,7 +231,7 @@ export async function purgeMediaByUrl(url: string | null | undefined): Promise<{
           .update(mediaAssets)
           .set({
             status: 'deleted',
-            deleted_at: new Date(),
+            deleted_at: new Date().toISOString(),
           })
           .where(eq(mediaAssets.id, assetId));
       } else {
@@ -243,8 +243,8 @@ export async function purgeMediaByUrl(url: string | null | undefined): Promise<{
             storage,
             media_type: inferMediaTypeFromKey(key),
             status: 'deleted',
-            created_at: new Date(),
-            deleted_at: new Date(),
+            created_at: new Date().toISOString(),
+            deleted_at: new Date().toISOString(),
           })
           .catch(() => {});
       }

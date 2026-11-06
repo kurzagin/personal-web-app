@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
           total_episodes: totalEps,
           score: body.score !== undefined ? (body.score ? parseInt(String(body.score), 10) : null) : prev.score,
           cover_url: coverUrl || prev.cover_url,
-          updated_at: new Date(),
+          updated_at: new Date().toISOString(),
         })
         .where(eq(animeWatchlist.id, prev.id))
         .returning();
@@ -271,7 +271,7 @@ export async function PATCH(request: NextRequest) {
       status: newStatus,
       current_episode: currentEp,
       total_episodes: totalEps,
-      updated_at: new Date(),
+      updated_at: new Date().toISOString(),
     };
 
     if (body.score !== undefined) {

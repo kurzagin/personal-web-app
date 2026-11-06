@@ -32,7 +32,8 @@ export class D1Client {
     this.apiToken = apiToken || process.env.CLOUDFLARE_API_TOKEN || null;
     this.refreshToken = process.env.CLOUDFLARE_REFRESH_TOKEN || null;
 
-    if (!this.apiToken) {
+    // Only fallback to wrangler config file if no static token is configured
+    if (!this.apiToken && !this.refreshToken) {
       this.resolveWranglerConfig();
     }
   }

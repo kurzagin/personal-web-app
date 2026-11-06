@@ -53,10 +53,11 @@ export async function PATCH(request: NextRequest) {
       await detachMediaByUrl(current.banner_url);
     }
 
+    const nowIso = new Date().toISOString();
     await db
       .insert(profiles)
-      .values({ ...current, banner_url, theme, updated_at: new Date() })
-      .onConflictDoUpdate({ target: profiles.id, set: { banner_url, theme, updated_at: new Date() } });
+      .values({ ...current, banner_url, theme, updated_at: nowIso })
+      .onConflictDoUpdate({ target: profiles.id, set: { banner_url, theme, updated_at: nowIso } });
     return json({ success: true, banner_url, theme }, 200);
   } catch (err: any) {
     console.error('Error updating hero image:', err);
@@ -156,8 +157,8 @@ export async function PUT(request: NextRequest) {
       contact_email,
       contact_details,
       contact_note,
-      updated_at: new Date(),
-      created_at: new Date(),
+      updated_at: new Date().toISOString(),
+      created_at: new Date().toISOString(),
     };
 
     if (current?.banner_url && current.banner_url !== banner_url) {
@@ -188,7 +189,7 @@ export async function PUT(request: NextRequest) {
           contact_email,
           contact_details,
           contact_note,
-          updated_at: new Date(),
+          updated_at: new Date().toISOString(),
         },
       });
 
