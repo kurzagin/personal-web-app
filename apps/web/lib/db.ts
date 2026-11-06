@@ -1,9 +1,9 @@
 import { drizzle } from 'drizzle-orm/d1';
 import { sql } from 'drizzle-orm';
-import * as schema from '@kurzagin/shared';
+import * as schema from '../db/schema';
 import { getD1 } from './d1';
 
-export * from '@kurzagin/shared';
+export * from '../db/schema';
 
 export type DbPost = schema.Post;
 export type DbPostMedia = schema.PostMedia;
