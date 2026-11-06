@@ -43,7 +43,10 @@ export type TabKey =
   | 'guestbook'
   | 'messages'
   | 'profile'
-  | 'settings';
+  | 'settings'
+  | 'new-post'
+  | 'new-track'
+  | 'new-anime';
 
 interface BottomNavProps {
   activeTab: TabKey;

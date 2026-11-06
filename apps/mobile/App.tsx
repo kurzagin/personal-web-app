@@ -44,6 +44,7 @@ import {
   clearStoredSession,
   DEFAULT_ENDPOINT,
 } from './lib/storage';
+import { Plus } from 'lucide-react-native';
 import {
   verifyOperatorSession,
   fetchFeedPosts,
@@ -62,6 +63,9 @@ import { DossierView } from './components/DossierView';
 import { MusicView } from './components/MusicView';
 import { BottomNav, type TabKey } from './components/BottomNav';
 import { CreatePostModal } from './components/CreatePostModal';
+import { CreatePostScreen } from './components/CreatePostScreen';
+import { AddTrackScreen } from './components/AddTrackScreen';
+import { AddAnimeScreen } from './components/AddAnimeScreen';
 import { AuthGate } from './components/AuthGate';
 import { ToolsView } from './components/ToolsView';
 import { AnimeView } from './components/AnimeView';
@@ -439,6 +443,36 @@ function MainApp() {
             onLoginSuccess={handleOperatorLoginSuccess}
             onLogout={handleOperatorLogout}
           />
+        ) : activeTab === 'new-post' ? (
+          <CreatePostScreen
+            endpoint={endpoint}
+            token={token || ''}
+            onPostCreated={() => {
+              loadData();
+              setActiveTab('home');
+            }}
+            onBack={() => setActiveTab('home')}
+          />
+        ) : activeTab === 'new-track' ? (
+          <AddTrackScreen
+            endpoint={endpoint}
+            token={token || ''}
+            onTrackAdded={() => {
+              loadData();
+              setActiveTab('music');
+            }}
+            onBack={() => setActiveTab('music')}
+          />
+        ) : activeTab === 'new-anime' ? (
+          <AddAnimeScreen
+            endpoint={endpoint}
+            token={token || ''}
+            onAnimeAdded={() => {
+              loadData();
+              setActiveTab('anime');
+            }}
+            onBack={() => setActiveTab('anime')}
+          />
         ) : null}
       </View>
 
@@ -450,6 +484,33 @@ function MainApp() {
         isAuthenticated={!!token}
         bottomInset={insets.bottom}
       />
+
+      {/* Floating Action Button (+) for Post (Home/Blog), Music, and Anime */}
+      {token &&
+        !['new-post', 'new-track', 'new-anime'].includes(activeTab) &&
+        (activeTab === 'home' ||
+          activeTab === 'blog' ||
+          activeTab === 'music' ||
+          activeTab === 'anime') && (
+          <TouchableOpacity
+            style={[
+              styles.fabButton,
+              { bottom: Math.max(insets.bottom, 6) + 68 },
+            ]}
+            onPress={() => {
+              if (activeTab === 'home' || activeTab === 'blog') {
+                setActiveTab('new-post');
+              } else if (activeTab === 'music') {
+                setActiveTab('new-track');
+              } else if (activeTab === 'anime') {
+                setActiveTab('new-anime');
+              }
+            }}
+            activeOpacity={0.85}
+          >
+            <Plus size={26} color="#0a0a0c" strokeWidth={2.8} />
+          </TouchableOpacity>
+        )}
 
       {/* Composer Modal for Operator */}
       {token ? (
@@ -730,5 +791,21 @@ const styles = StyleSheet.create({
     right: -1,
     borderBottomWidth: 1.5,
     borderRightWidth: 1.5,
+  },
+  fabButton: {
+    position: 'absolute',
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: colors.accent,
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 8,
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.35,
+    shadowRadius: 6,
+    zIndex: 999,
   },
 });
