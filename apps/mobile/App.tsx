@@ -118,11 +118,20 @@ function MainApp() {
         const stored = await loadStoredSession();
         setEndpoint(stored.endpoint);
         if (stored.token) {
+          // Optimistically restore session so app doesn't flash the login gate on offline/slow start
+          setToken(stored.token);
+          if (stored.username) {
+            setOperatorUser(stored.username);
+          }
+
+          // Verify with server in the background / on startup
           const verified = await verifyOperatorSession(stored.endpoint, stored.token);
           if (verified.valid) {
-            setToken(stored.token);
             setOperatorUser(verified.username || stored.username || 'operator');
-          } else {
+          } else if (!verified.networkError) {
+            // Token is explicitly invalidated or expired by the server
+            setToken(null);
+            setOperatorUser(null);
             await clearStoredSession();
           }
         }
