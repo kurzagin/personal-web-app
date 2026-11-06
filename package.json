@@ -27,5 +27,8 @@
   },
   "allowScripts": {
     "esbuild": true
+  },
+  "dependencies": {
+    "@kurzagin/ui": "github:kurzagin/ui#pkg"
   }
 }
