@@ -1,29 +1,12 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { User, SquarePen, Disc3, Tv, Gamepad2, BookOpen, MessageSquare, Wrench, Inbox } from 'lucide-react';
+import { User, SquarePen, Disc3, Tv, Gamepad2, BookOpen, MessageSquare, Wrench } from 'lucide-react';
 import { getCurrent } from './current';
 
 export default function Nav() {
   const current = getCurrent(usePathname());
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-
-  useEffect(() => {
-    let isMounted = true;
-    fetch('/api/auth/me')
-      .then((res) => res.json())
-      .then((data) => {
-        if (isMounted && data?.authenticated) {
-          setIsAuthenticated(true);
-        }
-      })
-      .catch(() => {});
-    return () => {
-      isMounted = false;
-    };
-  }, []);
 
   return (
     <nav className="top-nav">
@@ -39,17 +22,6 @@ export default function Nav() {
         <li><Link href="/novels" className={current === 'novels' ? 'active' : ''}><BookOpen size={13} /><span>novels</span></Link></li>
         <li><Link href="/tools" className={current === 'tools' ? 'active' : ''}><Wrench size={13} /><span>tools</span></Link></li>
         <li><Link href="/guestbook" className={current === 'guestbook' ? 'active' : ''}><MessageSquare size={13} /><span>guestbook</span></Link></li>
-        {isAuthenticated && (
-          <li>
-            <Link
-              href="/messages"
-              className={current === 'messages' ? 'active' : ''}
-              style={{ color: current === 'messages' ? 'var(--accent)' : 'var(--text-1)' }}
-            >
-              <Inbox size={13} /><span>messages</span>
-            </Link>
-          </li>
-        )}
       </ul>
     </nav>
   );

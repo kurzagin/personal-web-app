@@ -8,7 +8,6 @@ import {
   type DbAnimeWatchlistItem,
   type DbAnimeReview,
 } from '@/lib/db';
-import { getServerSession } from '@/lib/serverSession';
 import AnimeView from './AnimeView';
 
 export const metadata = { title: 'anime watchlist & reviews — kurzagin' };
@@ -43,8 +42,6 @@ export default async function AnimePage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   await connection();
-  const session = await getServerSession();
-  const authenticated = session !== null;
 
   const sp = await searchParams;
   const initialStatus = (typeof sp.status === 'string' ? sp.status : 'all').toLowerCase();
@@ -114,7 +111,6 @@ export default async function AnimePage({
 
   return (
     <AnimeView
-      authenticated={authenticated}
       initialStatus={initialStatus}
       initialPage={initialPage}
       stats={stats}

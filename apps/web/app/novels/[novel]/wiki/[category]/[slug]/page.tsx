@@ -5,10 +5,8 @@ import { getLoreEntry } from '@/lib/lore';
 import { getNovelBySlug } from '@/lib/novels';
 import SpoilerGate from '@/components/novels/SpoilerGate';
 import CopyMarkdownButton from '@/components/novels/CopyMarkdownButton';
-import { isServerAuthenticated } from '@/lib/serverSession';
 import { getDb, wikiVisualReferences } from '@/lib/db';
 import { and, asc, eq } from 'drizzle-orm';
-import WikiVisualReferencePanel from '@/components/novels/WikiVisualReferencePanel';
 
 interface Props {
   params: Promise<{ novel: string; category: string; slug: string }>;
@@ -24,7 +22,6 @@ export default async function NovelWikiDetailPage({ params }: Props) {
   const { novel, category, slug } = await params;
   const novelData = getNovelBySlug(novel);
   const entry = await getLoreEntry(novel, category, slug);
-  const authenticated = await isServerAuthenticated();
   const db = getDb();
   const references = db ? await db.select().from(wikiVisualReferences).where(and(eq(wikiVisualReferences.novel_slug, novel), eq(wikiVisualReferences.category, category), eq(wikiVisualReferences.entry_slug, slug))).orderBy(asc(wikiVisualReferences.created_at)) : [];
 
@@ -59,7 +56,6 @@ export default async function NovelWikiDetailPage({ params }: Props) {
       </div>
 
       <section className="section">
-        {authenticated && <WikiVisualReferencePanel novel={novel} category={category} slug={slug} initialItems={references} />}
         {entry.visual_reference && (
           <aside
             aria-label="Unofficial visual reference"

@@ -422,8 +422,11 @@ function MainApp() {
             onUpdateEndpoint={handleUpdateEndpoint}
             token={token}
             operatorUser={operatorUser}
+            currentBannerUrl={profile?.banner_url}
+            currentTheme={profile?.theme}
             onLoginSuccess={handleOperatorLoginSuccess}
             onLogout={handleOperatorLogout}
+            onSettingsSaved={() => loadData()}
           />
         ) : activeTab === 'new-post' ? (
           <CreatePostScreen

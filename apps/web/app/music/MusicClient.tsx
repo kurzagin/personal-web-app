@@ -17,16 +17,10 @@ import type { DbTrack } from '@/lib/db';
 
 interface MusicClientProps {
   tracks: DbTrack[];
-  authenticated: boolean;
-  r2Configured: boolean;
-  username?: string;
 }
 
 export default function MusicClient({
   tracks,
-  authenticated,
-  r2Configured,
-  username,
 }: MusicClientProps) {
   useEffect(() => {
   (function () {
@@ -622,119 +616,10 @@ export default function MusicClient({
         <h1><span className="hl">music</span> player</h1>
         <div className="page-sub"><span className="jp-label">音楽</span> — vinyl crackle, opus audio & avif sleeves</div>
       </div>
-      {authenticated ? (
-        <span style={css("font-family: var(--mono); font-size: 0.65rem; color: var(--accent);")}>
-          // operator: @{username} — <a href="/api/auth/logout" style={css("color: var(--text-3); text-decoration: underline;")}>logout</a>
-        </span>
-      ) : (
-        <a href="/login" style={css("font-family: var(--mono); font-size: 0.6rem; color: var(--text-3); text-decoration: none; opacity: 0.6;")} title="Operator Login">
-          // operator access
-        </a>
-      )}
     </div>
   </div>
 
   <section className="section">
-    {/* OPERATOR CRATE CONSOLE (UPLOAD OPUS AUDIO & AVIF VINYL ART) */}
-    {authenticated && (
-      <div className="crate-console bracket-card reveal">
-        <div className="crate-console-header">
-          <span>// CRATE CONSOLE — PRESS NEW RECORD (OPUS × AVIF)</span>
-          <span style={css("color: var(--text-3); font-size: 0.55rem;")}>
-            {r2Configured ? 'R2: CONNECTED' : 'R2: ENV NOT SET'}
-          </span>
-        </div>
-
-        {!r2Configured && (
-          <div style={css("background: rgba(255, 107, 107, 0.1); border: 1px solid #ff6b6b; padding: 10px 14px; margin-bottom: 14px; font-family: var(--mono); font-size: 0.65rem; color: #ff8888;")}>
-            [!] Cloudflare R2 credentials (R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET_NAME) are not configured. Add them to your environment variables to enable uploads.
-          </div>
-        )}
-
-        <div className="crate-form-grid">
-          <div className="crate-input-group">
-            <label className="crate-label" htmlFor="crateTitle">// TRACK TITLE *</label>
-            <input className="crate-input" id="crateTitle" type="text" placeholder="e.g. Neon & Rust" required />
-          </div>
-          <div className="crate-input-group">
-            <label className="crate-label" htmlFor="crateArtist">// ARTIST NAME *</label>
-            <input className="crate-input" id="crateArtist" type="text" placeholder="e.g. The Back Streets" required />
-          </div>
-        </div>
-
-        <div className="crate-form-grid">
-          <div className="crate-input-group">
-            <label className="crate-label" htmlFor="crateAlbum">// ALBUM / EP NAME (OPTIONAL)</label>
-            <input className="crate-input" id="crateAlbum" type="text" placeholder="e.g. Midnight Transmission" />
-          </div>
-          <div className="crate-input-group">
-            <label className="crate-label">// ESTIMATED DURATION</label>
-            <input className="crate-input" id="crateDuration" type="text" placeholder="auto-detected from audio" readonly style={css("opacity: 0.7;")} />
-          </div>
-        </div>
-
-        {/* FILE DROPZONES */}
-        <div className="crate-file-area">
-          <div className="crate-dropzone" id="audioDropzone">
-            <input type="file" id="audioFileInput" accept=".opus,audio/ogg,audio/opus,audio/webm,audio/*" onChange={(e) => { const w = window as any; handleAudioSelect(this) }} />
-            <div className="crate-dropzone-title" id="audioFileLabel" style={css("display: flex; align-items: center; justify-content: center; gap: 6px;")}><Music size={14} /> SELECT OPUS AUDIO (.opus)</div>
-            <div className="crate-dropzone-hint" id="audioFileHint">Native Opus stream • direct R2 presigned upload</div>
-          </div>
-
-          <div className="crate-dropzone" id="coverDropzone">
-            <input type="file" id="coverFileInput" accept="image/*" onChange={(e) => { const w = window as any; handleCoverSelect(this) }} />
-            <div className="crate-dropzone-title" id="coverFileLabel" style={css("display: flex; align-items: center; justify-content: center; gap: 6px;")}><ImageIcon size={14} /> SELECT ALBUM ART (IMAGE)</div>
-            <div className="crate-dropzone-hint" id="coverFileHint">Sharp serverless transcode • 1:1 circle-crop • AVIF format</div>
-          </div>
-        </div>
-
-        {/* LIVE VINYL CENTER & READINESS PREVIEW */}
-        <div className="crate-preview-row" id="cratePreviewRow">
-          <div className="crate-vinyl-preview" id="crateVinylPreview">
-            <img id="cratePreviewImg" src="" alt="Vinyl Center Preview" style={css("display: none;")} />
-            <div id="cratePreviewPlaceholder" style={css("width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; font-size: 0.65rem; color: var(--text-3); font-family: var(--mono); background: var(--bg-3);")}>KRZ</div>
-            <div className="vinyl-spindle"></div>
-          </div>
-          <div className="crate-preview-info" style={css("flex: 1;")}>
-            <div style={css("display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap;")}>
-              <span style={css("color: var(--text-0); font-weight: 500; font-size: 0.75rem;")} id="previewTitle">New Track</span>
-              <span id="previewBadge" style={css("font-family: var(--mono); font-size: 0.58rem; padding: 2px 6px; border-radius: 2px; background: rgba(255, 170, 0, 0.15); color: #ffaa00; border: 1px solid #ffaa00;")}>AWAITING AUDIO</span>
-            </div>
-            <span id="previewMeta" style={css("color: var(--text-3); font-size: 0.6rem; margin-top: 2px;")}>Audio: none • Cover: none (optional)</span>
-          </div>
-        </div>
-
-        {/* PROGRESS BAR */}
-        <div className="crate-progress-container" id="crateProgressContainer" style={css("display: none; margin-bottom: 12px;")}>
-          <div style={css("display: flex; justify-content: space-between; font-family: var(--mono); font-size: 0.6rem; color: var(--text-2); margin-bottom: 4px;")}>
-            <span id="crateProgressLabel">// UPLOADING...</span>
-            <span id="crateProgressPercent">0%</span>
-          </div>
-          <div style={css("width: 100%; height: 4px; background: var(--bg-1); border: 1px solid var(--border); border-radius: 2px; overflow: hidden;")}>
-            <div id="crateProgressBar" style={css("width: 0%; height: 100%; background: var(--accent); transition: width 0.15s ease;")}></div>
-          </div>
-        </div>
-
-        <div className="crate-status-log" id="crateStatus"></div>
-
-        <div className="crate-footer">
-          <button
-            className="post-btn"
-            id="pressVinylBtn"
-            onClick={(e) => {
-              e.preventDefault();
-              const w = window as any;
-              if (typeof w.pressVinylRecord === 'function') {
-                w.pressVinylRecord();
-              }
-            }}
-          >
-            PRESS VINYL →
-          </button>
-        </div>
-      </div>
-    )}
-
     {/* TURNTABLE PLAYER */}
     {tracks.length === 0 ? (
       <div className="bracket-card empty-state reveal">
@@ -744,7 +629,7 @@ export default function MusicClient({
           The turntable is still. No records spinning and no audio tracks have been queued in the crate yet.
         </p>
         <span className="empty-state-meta">
-          {authenticated ? '// crate empty — use the console above to upload an opus track' : '// status: silent — turntable powered off'}
+          '// status: silent — turntable powered off'
         </span>
       </div>
     ) : (
@@ -823,23 +708,7 @@ export default function MusicClient({
               </span>
               <div style={css("display: flex; align-items: center; gap: 10px;")}>
                 <span className="dur">{t.duration || '0:00'}</span>
-                {authenticated && (
-                  <button
-                    type="button"
-                    className="track-del-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      const w = window as any;
-                      if (typeof w.deleteTrackRecord === 'function') {
-                        w.deleteTrackRecord(t.id, encodeURIComponent(t.title));
-                      }
-                    }}
-                    title="Remove record from crate"
-                    style={css("display: inline-flex; align-items: center; justify-content: center;")}
-                  >
-                    <Trash2 size={12} />
-                  </button>
-                )}
+                
               </div>
             </div>
           ))}

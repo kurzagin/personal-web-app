@@ -16,7 +16,6 @@ import {
   type DbTrack,
   type ProjectEntry,
 } from '@/lib/db';
-import { getServerSession } from '@/lib/serverSession';
 import { getClientIp, hashIp } from '@/lib/ip';
 import HomeClient from './HomeClient';
 
@@ -28,8 +27,6 @@ export default async function HomePage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   await connection();
-  const session = await getServerSession();
-  const authenticated = session !== null;
   const profile = await getProfile();
   const currentlyBuilding: ProjectEntry[] = (profile.currently_building as ProjectEntry[]) || [];
 
@@ -113,8 +110,6 @@ export default async function HomePage({
 
   return (
     <HomeClient
-      authenticated={authenticated}
-      session={session}
       profile={JSON.parse(JSON.stringify(profile))}
       currentlyBuilding={JSON.parse(JSON.stringify(currentlyBuilding))}
       isMediaFilter={isMediaFilter}

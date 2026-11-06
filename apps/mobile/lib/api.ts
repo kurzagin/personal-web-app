@@ -737,3 +737,32 @@ export async function uploadProfileMedia(
     return { success: false, error: err?.message || `Network error uploading ${type}` };
   }
 }
+
+export async function updateHeroAndTheme(
+  endpoint: string,
+  token: string,
+  banner_url?: string | null,
+  theme?: string
+): Promise<{ success: boolean; banner_url?: string | null; theme?: string; error?: string }> {
+  try {
+    const formatted = endpoint.replace(/\/$/, '');
+    const res = await fetch(`${formatted}/api/profile`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        banner_url,
+        theme,
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.success) {
+      return { success: false, error: data?.error || 'Failed to update preferences' };
+    }
+    return { success: true, banner_url: data.banner_url, theme: data.theme };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error updating preferences' };
+  }
+}
