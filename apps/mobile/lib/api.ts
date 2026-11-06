@@ -109,7 +109,10 @@ export interface GameItem {
   };
 }
 
-export async function verifyOperatorSession(endpoint: string, token: string): Promise<{ valid: boolean; username?: string }> {
+export async function verifyOperatorSession(
+  endpoint: string,
+  token: string
+): Promise<{ valid: boolean; username?: string; networkError?: boolean }> {
   try {
     const formatted = endpoint.replace(/\/$/, '');
     const res = await fetch(`${formatted}/api/auth/me`, {
@@ -117,14 +120,25 @@ export async function verifyOperatorSession(endpoint: string, token: string): Pr
         Authorization: `Bearer ${token}`,
       },
     });
-    if (!res.ok) return { valid: false };
+
+    if (!res.ok) {
+      // 401 or 403 means the token is explicitly rejected by the server
+      if (res.status === 401 || res.status === 403) {
+        return { valid: false, networkError: false };
+      }
+      // Other server errors (500, 502, 503) should not wipe stored credentials
+      return { valid: false, networkError: true };
+    }
+
     const data = await res.json();
     return {
       valid: !!data.authenticated,
       username: data.user?.username,
+      networkError: false,
     };
   } catch (err) {
-    return { valid: false };
+    // Network failure, DNS issue, timeout, or offline
+    return { valid: false, networkError: true };
   }
 }
 
