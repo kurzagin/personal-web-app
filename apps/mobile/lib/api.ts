@@ -40,21 +40,33 @@ export interface ProjectEntry {
 
 export interface SocialLink {
   platform: string;
+  label?: string;
   url: string;
 }
 
+export interface ContactDetailEntry {
+  method: string;
+  value: string;
+  link?: string;
+}
+
 export interface WebProfile {
+  id?: string;
   name: string;
   handle: string;
   headline?: string;
   bio?: string;
   avatar_url?: string;
   banner_url?: string;
+  theme?: string;
   status_message?: string;
   location?: string;
   contact_email?: string;
+  contact_note?: string;
   social_links?: SocialLink[];
   currently_building?: ProjectEntry[];
+  tech_stack?: string[];
+  contact_details?: ContactDetailEntry[];
 }
 
 export interface DbTrack {
@@ -279,6 +291,79 @@ export async function postGuestbookReply(
     return { success: false, error: data?.error || 'Failed to submit reply' };
   }
   return { success: true };
+}
+
+export interface CommentWithPost {
+  id: string;
+  post_id: string;
+  author_name: string;
+  content: string;
+  parent_comment_id?: string | null;
+  created_at: string;
+  post_content?: string | null;
+  is_replied?: boolean;
+}
+
+export interface MessagesInboxData {
+  operatorUser: string;
+  pendingReplies: CommentWithPost[];
+  allReplies: CommentWithPost[];
+  guestbook: GuestbookEntry[];
+  pendingGuestbook: GuestbookEntry[];
+}
+
+export async function fetchMessages(
+  endpoint: string,
+  token: string
+): Promise<{ success: boolean; data?: MessagesInboxData; error?: string }> {
+  try {
+    const formatted = endpoint.replace(/\/$/, '');
+    const res = await fetch(`${formatted}/api/messages`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.success) {
+      return { success: false, error: data?.error || 'Failed to fetch messages' };
+    }
+    return { success: true, data };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error fetching messages' };
+  }
+}
+
+export async function replyToComment(
+  endpoint: string,
+  token: string,
+  postId: string,
+  parentCommentId: string,
+  content: string,
+  authorName: string
+): Promise<{ success: boolean; error?: string; comment?: any }> {
+  try {
+    const formatted = endpoint.replace(/\/$/, '');
+    const res = await fetch(`${formatted}/api/comments`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        postId,
+        parentCommentId,
+        content,
+        authorName,
+      }),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.success) {
+      return { success: false, error: data?.error || 'Failed to submit comment reply' };
+    }
+    return { success: true, comment: data.comment };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error submitting comment reply' };
+  }
 }
 
 export interface UploadedMediaItem {
@@ -586,5 +671,69 @@ export async function addTrack(
     return { success: true, track: data.track };
   } catch (err: any) {
     return { success: false, error: err?.message || 'Network error' };
+  }
+}
+
+export async function updateProfile(
+  endpoint: string,
+  token: string,
+  payload: Partial<WebProfile>
+): Promise<{ success: boolean; profile?: WebProfile; error?: string }> {
+  try {
+    const formatted = endpoint.replace(/\/$/, '');
+    const res = await fetch(`${formatted}/api/profile`, {
+      method: 'PUT',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(payload),
+    });
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.success) {
+      return { success: false, error: data?.error || 'Failed to update profile' };
+    }
+    return { success: true, profile: data.profile };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Network error updating profile' };
+  }
+}
+
+export async function uploadProfileMedia(
+  endpoint: string,
+  token: string,
+  fileUri: string,
+  type: 'avatar' | 'banner'
+): Promise<{ success: boolean; url?: string; error?: string }> {
+  try {
+    const formatted = endpoint.replace(/\/$/, '');
+    const filename = fileUri.split('/').pop() || `${type}.jpg`;
+    const match = /\.(\w+)$/.exec(filename);
+    const mimeType = match ? `image/${match[1] === 'jpg' ? 'jpeg' : match[1]}` : 'image/jpeg';
+
+    const formData = new FormData();
+    formData.append('file', {
+      uri: fileUri,
+      name: filename,
+      type: mimeType,
+    } as any);
+    formData.append('type', type);
+
+    const res = await fetch(`${formatted}/api/media/upload-profile-media`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+      body: formData,
+    });
+
+    const data = await res.json().catch(() => null);
+    if (!res.ok || !data?.url) {
+      return { success: false, error: data?.error || `Failed to upload ${type}` };
+    }
+
+    return { success: true, url: data.url };
+  } catch (err: any) {
+    return { success: false, error: err?.message || `Network error uploading ${type}` };
   }
 }
