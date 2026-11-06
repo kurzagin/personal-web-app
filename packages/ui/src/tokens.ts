@@ -18,8 +18,17 @@ export const colors = {
 } as const;
 
 export const typography = {
-  fontMono: 'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-  fontSans: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif',
+  fontMono: 'IBMPlexMono_400Regular',
+  fontMonoLight: 'IBMPlexMono_300Light',
+  fontMonoMedium: 'IBMPlexMono_500Medium',
+  fontMonoBold: 'IBMPlexMono_600SemiBold',
+  fontSans: 'IBMPlexSans_400Regular',
+  fontSansLight: 'IBMPlexSans_300Light',
+  fontSansMedium: 'IBMPlexSans_500Medium',
+  fontSansBold: 'IBMPlexSans_600SemiBold',
+  fontJp: 'NotoSansJP_400Regular',
+  fontJpMedium: 'NotoSansJP_500Medium',
+  fontJpBold: 'NotoSansJP_700Bold',
 } as const;
 
 export const spacing = {
