@@ -1,186 +1,247 @@
 import React, { useState } from 'react';
-import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Modal,
+  SafeAreaView,
+  KeyboardAvoidingView,
+  Platform,
+} from 'react-native';
 import { colors, typography, spacing } from '@kurzagin/ui';
+import { createPost } from '../lib/api';
 
 interface CreatePostModalProps {
-  apiEndpoint: string;
-  adminToken: string;
+  visible: boolean;
+  endpoint: string;
+  token: string;
   onPostCreated: () => void;
-  onCancel: () => void;
+  onClose: () => void;
 }
 
+const CATEGORIES = ['general', 'tech', 'builds', 'media', 'anime'];
+
 export const CreatePostModal: React.FC<CreatePostModalProps> = ({
-  apiEndpoint,
-  adminToken,
+  visible,
+  endpoint,
+  token,
   onPostCreated,
-  onCancel,
+  onClose,
 }) => {
   const [content, setContent] = useState('');
-  const [category, setCategory] = useState<'text' | 'media' | 'anime'>('text');
+  const [category, setCategory] = useState('general');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const handleSubmit = async () => {
-    if (!content.trim()) {
-      setError('Content cannot be empty');
-      return;
-    }
+    if (!content.trim()) return;
     setLoading(true);
     setError(null);
 
-    try {
-      const res = await fetch(`${apiEndpoint}/api/posts`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${adminToken}`,
-        },
-        body: JSON.stringify({
-          content: content.trim(),
-          category,
-        }),
-      });
+    const res = await createPost(endpoint, token, content.trim(), category);
+    setLoading(false);
 
-      if (!res.ok) {
-        const data = await res.json().catch(() => null);
-        throw new Error(data?.error || `Failed to submit post (${res.status})`);
-      }
-
+    if (res.success) {
       setContent('');
       onPostCreated();
-    } catch (err: any) {
-      setError(err?.message || 'Error publishing post');
-    } finally {
-      setLoading(false);
+      onClose();
+    } else {
+      setError(res.error || 'Failed to transmit post');
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>NEW TRANSMISSION</Text>
-      
-      {error && <Text style={styles.error}>{error}</Text>}
-
-      <View style={styles.categoryRow}>
-        {(['text', 'media', 'anime'] as const).map((cat) => (
-          <TouchableOpacity
-            key={cat}
-            style={[styles.categoryBtn, category === cat && styles.categoryBtnActive]}
-            onPress={() => setCategory(cat)}
-          >
-            <Text
-              style={[
-                styles.categoryText,
-                category === cat && styles.categoryTextActive,
-              ]}
-            >
-              {cat.toUpperCase()}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </View>
-
-      <TextInput
-        style={styles.textArea}
-        value={content}
-        onChangeText={setContent}
-        placeholder="Write transmission log or reflection..."
-        placeholderTextColor={colors.textDim}
-        multiline
-        numberOfLines={4}
-      />
-
-      <View style={styles.actionRow}>
-        <TouchableOpacity style={styles.cancelBtn} onPress={onCancel} disabled={loading}>
-          <Text style={styles.cancelText}>CANCEL</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.publishBtn, loading && styles.btnDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
+    <Modal visible={visible} animationType="slide" transparent>
+      <SafeAreaView style={styles.overlay}>
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          style={styles.keyboardContainer}
         >
-          {loading ? (
-            <ActivityIndicator size="small" color={colors.bg} />
-          ) : (
-            <Text style={styles.publishText}>PUBLISH</Text>
-          )}
-        </TouchableOpacity>
-      </View>
-    </View>
+          <View style={styles.modalCard}>
+            <View style={styles.header}>
+              <Text style={styles.title}>// TRANSMIT BROADCAST</Text>
+              <TouchableOpacity onPress={onClose} style={styles.closeBtn}>
+                <Text style={styles.closeText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            {error && <Text style={styles.errorText}>[ERR] {error}</Text>}
+
+            <Text style={styles.label}>CLASSIFICATION / CHANNEL</Text>
+            <View style={styles.categoryRow}>
+              {CATEGORIES.map((cat) => (
+                <TouchableOpacity
+                  key={cat}
+                  style={[
+                    styles.catBadge,
+                    category === cat && styles.catBadgeActive,
+                  ]}
+                  onPress={() => setCategory(cat)}
+                >
+                  <Text
+                    style={[
+                      styles.catText,
+                      category === cat && styles.catTextActive,
+                    ]}
+                  >
+                    #{cat}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.label}>TRANSMISSION CONTENT</Text>
+            <TextInput
+              style={styles.textArea}
+              value={content}
+              onChangeText={setContent}
+              placeholder="What are you building or observing? (Markdown supported)"
+              placeholderTextColor={colors.textDim}
+              multiline
+              autoFocus
+            />
+
+            <View style={styles.actions}>
+              <TouchableOpacity
+                style={styles.cancelBtn}
+                onPress={onClose}
+                disabled={loading}
+              >
+                <Text style={styles.cancelBtnText}>DISCARD</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.submitBtn,
+                  (!content.trim() || loading) && styles.btnDisabled,
+                ]}
+                onPress={handleSubmit}
+                disabled={!content.trim() || loading}
+              >
+                {loading ? (
+                  <ActivityIndicator size="small" color={colors.bg} />
+                ) : (
+                  <Text style={styles.submitBtnText}>PUBLISH TO FEED</Text>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </KeyboardAvoidingView>
+      </SafeAreaView>
+    </Modal>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.75)',
+    justifyContent: 'center',
+    padding: spacing.lg,
+  },
+  keyboardContainer: {
+    flex: 1,
+    justifyContent: 'center',
+  },
+  modalCard: {
     backgroundColor: colors.bgCard,
-    borderColor: colors.border,
     borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 8,
     padding: spacing.lg,
-    margin: spacing.lg,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: spacing.md,
   },
   title: {
     fontFamily: typography.fontMono,
-    color: colors.accent,
     fontSize: 14,
     fontWeight: 'bold',
-    marginBottom: spacing.md,
+    color: colors.accent,
+    letterSpacing: 1,
+  },
+  closeBtn: {
+    padding: spacing.xs,
+  },
+  closeText: {
+    color: colors.textDim,
+    fontSize: 16,
+    fontFamily: typography.fontMono,
+  },
+  errorText: {
+    fontFamily: typography.fontMono,
+    fontSize: 12,
+    color: colors.danger,
+    marginBottom: spacing.sm,
+  },
+  label: {
+    fontFamily: typography.fontMono,
+    fontSize: 10,
+    color: colors.textDim,
+    letterSpacing: 1,
+    marginBottom: spacing.xs,
   },
   categoryRow: {
     flexDirection: 'row',
-    gap: spacing.sm,
+    flexWrap: 'wrap',
+    gap: spacing.xs,
     marginBottom: spacing.md,
   },
-  categoryBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 4,
+  catBadge: {
     borderWidth: 1,
     borderColor: colors.border,
+    borderRadius: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
   },
-  categoryBtnActive: {
+  catBadgeActive: {
     backgroundColor: colors.accentMuted,
     borderColor: colors.accent,
   },
-  categoryText: {
+  catText: {
     fontFamily: typography.fontMono,
-    fontSize: 10,
-    color: colors.textMuted,
+    fontSize: 11,
+    color: colors.textDim,
   },
-  categoryTextActive: {
+  catTextActive: {
     color: colors.accent,
     fontWeight: 'bold',
   },
   textArea: {
     backgroundColor: colors.bg,
-    borderColor: colors.border,
     borderWidth: 1,
+    borderColor: colors.border,
     borderRadius: 6,
     color: colors.text,
     fontFamily: typography.fontSans,
     fontSize: 14,
     padding: spacing.md,
-    minHeight: 100,
+    minHeight: 120,
     textAlignVertical: 'top',
     marginBottom: spacing.md,
   },
-  actionRow: {
+  actions: {
     flexDirection: 'row',
     justifyContent: 'flex-end',
-    gap: spacing.md,
+    gap: spacing.sm,
   },
   cancelBtn: {
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.md,
     justifyContent: 'center',
   },
-  cancelText: {
+  cancelBtnText: {
     color: colors.textDim,
     fontFamily: typography.fontMono,
     fontSize: 12,
   },
-  publishBtn: {
+  submitBtn: {
     backgroundColor: colors.accent,
     paddingVertical: spacing.sm,
     paddingHorizontal: spacing.lg,
@@ -188,18 +249,12 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   btnDisabled: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
-  publishText: {
+  submitBtnText: {
     color: colors.bg,
     fontFamily: typography.fontMono,
     fontWeight: 'bold',
     fontSize: 12,
-  },
-  error: {
-    color: colors.danger,
-    fontFamily: typography.fontMono,
-    fontSize: 12,
-    marginBottom: spacing.sm,
   },
 });
