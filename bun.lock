@@ -490,7 +490,7 @@
 
     "@kurzagin/shared": ["@kurzagin/shared@workspace:packages/shared"],
 
-    "@kurzagin/ui": ["@kurzagin/ui@github:kurzagin/ui#c660f25", { "peerDependencies": { "react": ">=18.0.0", "react-dom": ">=18.0.0" }, "optionalPeers": ["react", "react-dom"] }, "kurzagin-ui-c660f25", "sha512-R3dsSwwb/kcbnu47vsED8EGNEOq3lgdrJBCHT4eav0zSto2WlqWlHcfEbS+uHurzBy3bywUfCBci9N3dNqvF1A=="],
+    "@kurzagin/ui": ["@kurzagin/ui@github:kurzagin/ui#fb83c0e", { "peerDependencies": { "react": ">=18.0.0", "react-dom": ">=18.0.0" }, "optionalPeers": ["react", "react-dom"] }, "kurzagin-ui-fb83c0e", "sha512-oL5259rVV0bDSbkX+m0UeARs2WPSNzijXruaN/FEyMORNboXuoW73e3puX5KTGuvzu3bLw8jLhnwsbu3hhKMAQ=="],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.2.4", "", { "dependencies": { "@tybys/wasm-util": "^0.10.3" }, "peerDependencies": { "@emnapi/core": "^1.7.1 || ^2.0.0-alpha.4", "@emnapi/runtime": "^1.7.1 || ^2.0.0-alpha.4" } }, "sha512-AJxoUD2/15ESHbvpcyjU274nsAPLuOtPHCk0vKJM5pj//Fg/B1FXNWjPnXTT9PymCYYiHo4zPj0ZomXBKhoy7g=="],
 
