@@ -8,7 +8,7 @@ import {
   Image,
 } from 'react-native';
 import { Gamepad2, Sparkles, BookOpen, ChevronRight, Zap } from 'lucide-react-native';
-import { colors, typography } from '@kurzagin/ui';
+import { colors, typography } from '@krpkg/ui';
 
 export const GamesView: React.FC = () => {
   return (

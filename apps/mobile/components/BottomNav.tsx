@@ -25,7 +25,7 @@ import {
   SkipBack,
   SkipForward,
 } from 'lucide-react-native';
-import { colors, typography } from '@kurzagin/ui';
+import { colors, typography } from '@krpkg/ui';
 import type { DbTrack } from '../lib/api';
 import { useAppAudio } from '../lib/AudioContext';
 

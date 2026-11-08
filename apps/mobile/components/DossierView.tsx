@@ -25,7 +25,7 @@ import {
   Sparkles,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, typography, spacing } from '@kurzagin/ui';
+import { colors, typography, spacing } from '@krpkg/ui';
 import {
   type WebProfile,
   type ProjectEntry,

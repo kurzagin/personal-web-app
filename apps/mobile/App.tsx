@@ -37,7 +37,7 @@ import {
   NotoSansJP_500Medium,
   NotoSansJP_700Bold,
 } from '@expo-google-fonts/noto-sans-jp';
-import { colors, typography, spacing } from '@kurzagin/ui';
+import { colors, typography, spacing } from '@krpkg/ui';
 import {
   loadStoredSession,
   saveStoredSession,

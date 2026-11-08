@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet, Image, TouchableOpacity, Linking } from 'react-native';
 import { Heart, MessageSquare, ExternalLink, Image as ImageIcon } from 'lucide-react-native';
-import { colors, typography, spacing } from '@kurzagin/ui';
+import { colors, typography, spacing } from '@krpkg/ui';
 import type { PostMediaItem } from '../lib/api';
 
 interface PostCardProps {

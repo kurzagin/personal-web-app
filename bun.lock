@@ -5,7 +5,7 @@
     "": {
       "name": "kurzagin",
       "dependencies": {
-        "@kurzagin/ui": "github:kurzagin/ui#pkg",
+        "@krpkg/ui": "^0.3.1",
       },
       "optionalDependencies": {
         "@esbuild/linux-x64": "0.28.2",
@@ -21,6 +21,7 @@
         "@expo-google-fonts/ibm-plex-mono": "^0.4.1",
         "@expo-google-fonts/ibm-plex-sans": "^0.4.1",
         "@expo-google-fonts/noto-sans-jp": "^0.4.4",
+        "@krpkg/ui": "^0.3.1",
         "@react-native-async-storage/async-storage": "^3.1.1",
         "expo": "~58.0.23",
         "expo-audio": "~58.0.11",
@@ -43,7 +44,7 @@
       "dependencies": {
         "@aws-sdk/client-s3": "^3.1146.0",
         "@aws-sdk/s3-request-presigner": "^3.1146.0",
-        "@kurzagin/ui": "github:kurzagin/ui#pkg",
+        "@krpkg/ui": "^0.3.1",
         "drizzle-orm": "^0.45.3",
         "gray-matter": "^4.0.3",
         "lucide-react": "^1.51.0",
@@ -488,9 +489,9 @@
 
     "@jridgewell/trace-mapping": ["@jridgewell/trace-mapping@0.3.31", "", { "dependencies": { "@jridgewell/resolve-uri": "^3.1.0", "@jridgewell/sourcemap-codec": "^1.4.14" } }, "sha512-zzNR+SdQSDJzc8joaeP8QQoCQr8NuYx2dIIytl1QeBEZHJ9uW6hebsrYgbz8hJwUQao3TWCMtmfV8Nu1twOLAw=="],
 
-    "@kurzagin/shared": ["@kurzagin/shared@workspace:packages/shared"],
+    "@krpkg/ui": ["@krpkg/ui@0.3.1", "", { "peerDependencies": { "react": ">=18.0.0", "react-dom": ">=18.0.0", "react-native": ">=0.70.0" }, "optionalPeers": ["react-dom", "react-native"] }, "sha512-w41fJ6ae2/DuFuPnbZcNARYYEf52w6zmOziVJXFTY43OU2CMXFoZQFdppUR1qdAuTmBFg+UX4D9Gq/z6ZTJz4g=="],
 
-    "@kurzagin/ui": ["@kurzagin/ui@github:kurzagin/ui#fb83c0e", { "peerDependencies": { "react": ">=18.0.0", "react-dom": ">=18.0.0" }, "optionalPeers": ["react", "react-dom"] }, "kurzagin-ui-fb83c0e", "sha512-oL5259rVV0bDSbkX+m0UeARs2WPSNzijXruaN/FEyMORNboXuoW73e3puX5KTGuvzu3bLw8jLhnwsbu3hhKMAQ=="],
+    "@kurzagin/shared": ["@kurzagin/shared@workspace:packages/shared"],
 
     "@napi-rs/wasm-runtime": ["@napi-rs/wasm-runtime@1.2.4", "", { "dependencies": { "@tybys/wasm-util": "^0.10.3" }, "peerDependencies": { "@emnapi/core": "^1.7.1 || ^2.0.0-alpha.4", "@emnapi/runtime": "^1.7.1 || ^2.0.0-alpha.4" } }, "sha512-AJxoUD2/15ESHbvpcyjU274nsAPLuOtPHCk0vKJM5pj//Fg/B1FXNWjPnXTT9PymCYYiHo4zPj0ZomXBKhoy7g=="],
 

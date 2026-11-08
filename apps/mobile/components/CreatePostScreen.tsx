@@ -14,7 +14,7 @@ import {
 } from 'react-native';
 import { ArrowLeft, Send, Paperclip, X, Radio, Terminal } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, typography, spacing } from '@kurzagin/ui';
+import { colors, typography, spacing } from '@krpkg/ui';
 import { createPost, uploadPostImage, type UploadedMediaItem } from '../lib/api';
 
 interface CreatePostScreenProps {

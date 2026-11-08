@@ -12,7 +12,7 @@ import {
   Image,
 } from 'react-native';
 import { ArrowLeft, Search, Plus, Check, Tv, Film } from 'lucide-react-native';
-import { colors, typography, spacing } from '@kurzagin/ui';
+import { colors, typography, spacing } from '@krpkg/ui';
 import { searchAniList, addAnimeToWatchlist, type AniListSearchResult } from '../lib/api';
 
 interface AddAnimeScreenProps {

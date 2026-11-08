@@ -17,7 +17,7 @@ import {
   ExternalLink,
 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, typography } from '@kurzagin/ui';
+import { colors, typography } from '@krpkg/ui';
 import { loginOperator, uploadProfileMedia, updateHeroAndTheme } from '../lib/api';
 
 interface SettingsViewProps {
