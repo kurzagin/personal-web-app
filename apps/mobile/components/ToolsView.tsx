@@ -20,7 +20,7 @@ import {
   Copy,
   Check,
 } from 'lucide-react-native';
-import { colors, typography } from '@kurzagin/ui';
+import { colors, typography } from '@krpkg/ui';
 
 interface ToolItem {
   slug: string;

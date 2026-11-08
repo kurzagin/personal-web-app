@@ -10,7 +10,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { MessageSquare, Send, CheckCircle2 } from 'lucide-react-native';
-import { colors, typography } from '@kurzagin/ui';
+import { colors, typography } from '@krpkg/ui';
 import { signGuestbook, type GuestbookEntry } from '../lib/api';
 import { GuestbookCard } from './GuestbookCard';
 

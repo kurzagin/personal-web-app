@@ -21,7 +21,7 @@ import {
   Inbox,
   AlertCircle,
 } from 'lucide-react-native';
-import { colors, typography, spacing } from '@kurzagin/ui';
+import { colors, typography, spacing } from '@krpkg/ui';
 import {
   fetchMessages,
   replyToComment,

@@ -22,7 +22,7 @@ import {
 } from 'lucide-react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
-import { colors, typography, spacing } from '@kurzagin/ui';
+import { colors, typography, spacing } from '@krpkg/ui';
 import {
   addTrack,
   presignAudioUpload,

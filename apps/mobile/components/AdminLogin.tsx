@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
-import { colors, typography, spacing } from '@kurzagin/ui';
+import { colors, typography, spacing } from '@krpkg/ui';
 
 interface AdminLoginProps {
   onLoginSuccess: (token: string, apiEndpoint: string) => void;

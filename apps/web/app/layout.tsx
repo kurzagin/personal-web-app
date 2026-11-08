@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import Script from 'next/script';
-import '@kurzagin/ui/styles.css';
+import '@krpkg/ui/styles.css';
 import './globals.css';
 import Nav from '@/components/Nav';
 import Sidebar from '@/components/Sidebar';

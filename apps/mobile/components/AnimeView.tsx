@@ -17,7 +17,7 @@ import {
   MessageSquare,
   Film,
 } from 'lucide-react-native';
-import { colors, typography } from '@kurzagin/ui';
+import { colors, typography } from '@krpkg/ui';
 import { fetchAnimeList, type AnimeWatchlistItem } from '../lib/api';
 
 interface AnimeViewProps {
