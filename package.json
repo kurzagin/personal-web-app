@@ -12,6 +12,7 @@
     "mobile:start": "npm run --prefix apps/mobile start",
     "mobile:dev": "npm run --prefix apps/mobile start -- --localhost",
     "mobile:android": "npm run --prefix apps/mobile android",
+    "build:apk": "npm run --prefix apps/mobile build:apk",
     "create-account": "npm run --prefix apps/web create-account --",
     "change-password": "npm run --prefix apps/web change-password --",
     "pwa:icons": "npm run --prefix apps/web pwa:icons",
